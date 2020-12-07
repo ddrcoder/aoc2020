@@ -229,7 +229,8 @@ fn day5(gold: bool) -> usize {
     }
 }
 
-fn day6(and: bool) -> usize {
+fn day6(gold: bool) -> usize {
+    let and = gold;
     sum_groups(
         lines("day6.txt"),
         |set, line| {
@@ -248,8 +249,28 @@ fn day6(and: bool) -> usize {
     )
 }
 
+fn day7(gold: bool) -> usize {
+    let lines = lines("day7.txt");
+    if !gold {
+        sum_groups(
+            lines,
+            |state, line| {
+                let (a, b) = scan_fmt!(line, "{}: {}", usize, usize).ok().unwrap();
+                if let Some((a2, b2)) = state {
+                    (a + a2, b + b2)
+                } else {
+                    (a, b)
+                }
+            },
+            |(a, b)| a * b,
+        )
+    } else {
+        0
+    }
+}
+
 fn main() {
-    let solutions = [day1, day2, day3, day4, day5, day6];
+    let solutions = [day1, day2, day3, day4, day5, day6, day7];
     for (i, solution) in solutions.iter().enumerate() {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));
     }

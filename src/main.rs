@@ -218,15 +218,14 @@ fn day5(gold: bool) -> usize {
     });
 
     if !gold {
-        seats.max().unwrap()
+        seats.max()
     } else {
         let mut seats: Vec<usize> = seats.collect();
         seats.sort();
         let mut pairs = seats.iter().zip(seats.iter().skip(1));
-        pairs
-            .find_map(|(a, b)| if b - a > 1 { Some(a + 1) } else { None })
-            .unwrap()
+        pairs.find_map(|(a, b)| if b - a > 1 { Some(a + 1) } else { None })
     }
+    .unwrap()
 }
 
 fn day6(gold: bool) -> usize {
@@ -249,23 +248,59 @@ fn day6(gold: bool) -> usize {
     )
 }
 
-fn day7(gold: bool) -> usize {
-    let lines = lines("day7.txt");
-    if !gold {
-        sum_groups(
-            lines,
-            |state, line| {
-                let (a, b) = scan_fmt!(line, "{}: {}", usize, usize).ok().unwrap();
-                if let Some((a2, b2)) = state {
-                    (a + a2, b + b2)
-                } else {
-                    (a, b)
-                }
-            },
-            |(a, b)| a * b,
-        )
+fn can_reach(end: &str, here: &str, graph: &HashMap<String, HashMap<String, usize>>) -> bool {
+    if here == end {
+        true
+    } else if let Some(nested) = graph.get(here) {
+        nested.keys().any(|key| can_reach(end, key, graph))
+    } else {
+        false
+    }
+}
+
+fn total_nested(graph: &HashMap<String, HashMap<String, usize>>, here: &str, n: usize) -> usize {
+    n + if let Some(nested) = graph.get(here) {
+        nested
+            .iter()
+            .map(|(k, v)| total_nested(graph, k, n * v))
+            .sum()
     } else {
         0
+    }
+}
+
+fn day7(gold: bool) -> usize {
+    let lines = lines("day7.txt");
+    let mut contains: HashMap<String, HashMap<String, usize>> = HashMap::new();
+    for line in lines {
+        // shiny gold bags contain 1 dark olive bag, 2 vibrant plum bags.
+        let mut r = line.split(" bags contain ");
+        let outer = r.next().unwrap();
+        let inners = r.next().unwrap().strip_suffix(".").unwrap();
+        for inner in inners.split(", ") {
+            let inner = inner
+                .strip_suffix("s")
+                .unwrap_or(inner)
+                .strip_suffix(" bag")
+                .unwrap();
+            if inner != "no other" {
+                let cut = inner.find(' ').unwrap();
+                let n = inner[0..cut].parse().ok().unwrap();
+                let name = &inner[(cut + 1)..];
+                contains
+                    .entry(outer.to_string())
+                    .or_insert_with(Default::default)
+                    .insert(name.to_string(), n);
+            }
+        }
+    }
+    if !gold {
+        contains
+            .keys()
+            .filter(|outer| can_reach("shiny gold", outer, &contains))
+            .count()
+    } else {
+        total_nested(&contains, "shiny gold", 1) - 1
     }
 }
 

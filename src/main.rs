@@ -3,12 +3,19 @@ extern crate scan_fmt;
 
 use std::collections::hash_map::HashMap;
 use std::collections::hash_set::HashSet;
-use std::env;
-use std::io;
+use std::fs::File;
 use std::io::BufRead;
+use std::io::BufReader;
 use std::iter::Iterator;
 
-fn sum2(nums: &HashSet<usize>, target: usize) -> Option<(usize, usize)> {
+fn lines(filename: &str) -> Vec<String> {
+    BufReader::new(File::open(filename).ok().unwrap())
+        .lines()
+        .map(|line| line.ok().unwrap())
+        .collect()
+}
+
+fn sum2(nums: &HashSet<i32>, target: i32) -> Option<(i32, i32)> {
     for num in nums {
         if nums.contains(&(target - num)) {
             return Some((*num, target - num));
@@ -17,137 +24,92 @@ fn sum2(nums: &HashSet<usize>, target: usize) -> Option<(usize, usize)> {
     None
 }
 
-fn read_nums() -> HashSet<usize> {
-    io::stdin()
-        .lock()
-        .lines()
-        .map(|line| line.ok().unwrap().parse().unwrap())
+fn read_nums() -> HashSet<i32> {
+    lines("day1.txt")
+        .iter()
+        .map(|str| str.parse().ok().unwrap())
         .collect()
 }
 
-fn day1a() -> usize {
-    if let Some((a, b)) = sum2(&read_nums(), 2020) {
-        return a * b;
-    }
-    panic!();
-}
-
-fn day1b() -> usize {
-    let nums = read_nums();
-    for num in &nums {
-        if let Some((a, b)) = sum2(&nums, 2020 - num) {
-            return num * a * b;
+fn day1(gold: bool) -> usize {
+    if !gold {
+        if let Some((a, b)) = sum2(&read_nums(), 2020) {
+            return (a * b) as usize;
+        }
+    } else {
+        let nums = read_nums();
+        for num in &nums {
+            if let Some((a, b)) = sum2(&nums, 2020 - num) {
+                return (num * a * b) as usize;
+            }
         }
     }
     panic!();
 }
 
 fn read_passwords() -> Vec<(usize, usize, char, String)> {
-    io::stdin()
-        .lock()
-        .lines()
+    lines("day2.txt")
+        .iter()
         .map(|line| {
-            scan_fmt!(
-                &line.ok().unwrap(),
-                "{}-{} {}: {}",
-                usize,
-                usize,
-                char,
-                String
-            )
-            .ok()
-            .unwrap()
+            scan_fmt!(line, "{}-{} {}: {}", usize, usize, char, String)
+                .ok()
+                .unwrap_or_else(|| panic!("bad password line: {}", line))
         })
         .collect()
 }
 
-fn day2a() -> usize {
-    read_passwords()
-        .into_iter()
-        .map(|(min, max, ch_constrained, password)| {
-            (min..=max).contains(&password.chars().filter(|ch| *ch == ch_constrained).count())
-        })
-        .count()
+fn day2(gold: bool) -> usize {
+    let passwords = read_passwords().into_iter();
+    if !gold {
+        passwords
+            .map(|(min, max, ch_constrained, password)| {
+                (min..=max).contains(&password.chars().filter(|ch| *ch == ch_constrained).count())
+            })
+            .count()
+    } else {
+        passwords
+            .filter(|(c1, c2, ch_constrained, password)| {
+                let (i1, i2) = (c1 - 1, c2 - 1);
+                let reps = password
+                    .chars()
+                    .enumerate()
+                    .filter(|(i, ch)| (*i == i1 || *i == i2) && ch == ch_constrained)
+                    .count();
+                reps == 1
+            })
+            .count()
+    }
 }
 
-fn day2b() -> usize {
-    let lines = read_passwords();
-    lines
-        .into_iter()
-        .filter(|(c1, c2, ch_constrained, password)| {
-            let (i1, i2) = (c1 - 1, c2 - 1);
-            let reps = password
-                .chars()
-                .enumerate()
-                .filter(|(i, ch)| (*i == i1 || *i == i2) && ch == ch_constrained)
-                .count();
-            reps == 1
-        })
-        .count()
-}
-
-fn day3a() -> usize {
-    io::stdin()
-        .lock()
-        .lines()
-        .map(|line| line.ok().unwrap())
-        .enumerate()
-        .filter(|(i, line)| {
-            let w = line.len();
-            let j = i * 3 % w;
-            let ch = line.chars().skip(j).next().unwrap();
-            ch == '#'
-        })
-        .count()
-}
-
-fn day3b() -> usize {
-    let strides = [(1, 1), (3, 1), (5, 1), (7, 1), (1, 2)];
-    let mut trees = [0; 5];
-    for (i, line) in io::stdin().lock().lines().enumerate() {
-        let line = line.ok().unwrap();
-        let w = line.len();
-        for (route, (over, down)) in strides.iter().cloned().enumerate() {
-            if i % down == 0 {
-                let j = i * over / down % w;
+fn day3(gold: bool) -> usize {
+    let lines = lines("day3.txt");
+    let terrain = lines.iter().enumerate();
+    if !gold {
+        terrain
+            .filter(|(i, line)| {
+                let w = line.len();
+                let j = i * 3 % w;
                 let ch = line.chars().skip(j).next().unwrap();
-                if ch == '#' {
-                    trees[route] += 1;
+                ch == '#'
+            })
+            .count()
+    } else {
+        let strides = [(1, 1), (3, 1), (5, 1), (7, 1), (1, 2)];
+        let mut trees = [0; 5];
+        for (i, line) in terrain {
+            let w = line.len();
+            for (route, (over, down)) in strides.iter().cloned().enumerate() {
+                if i % down == 0 {
+                    let j = i * over / down % w;
+                    let ch = line.chars().skip(j).next().unwrap();
+                    if ch == '#' {
+                        trees[route] += 1;
+                    }
                 }
             }
         }
+        trees.iter().fold(1, |acc, n| acc * n)
     }
-    trees.iter().fold(1, |acc, n| acc * n)
-}
-
-fn read_seats() -> Vec<usize> {
-    io::stdin()
-        .lock()
-        .lines()
-        .map(|line| {
-            line.ok().unwrap().chars().fold(0, |v, ch| {
-                v * 2
-                    + match ch {
-                        'F' | 'L' => 0,
-                        'B' | 'R' => 1,
-                        _ => panic!("Bad seat char: {}", ch),
-                    }
-            })
-        })
-        .collect()
-}
-
-fn day5a() -> usize {
-    *read_seats().iter().max().unwrap()
-}
-
-fn day5b() -> usize {
-    let mut seats = read_seats();
-    seats.sort();
-    let mut pairs = seats.iter().zip(seats.iter().skip(1));
-    pairs
-        .find_map(|(a, b)| if b - a > 1 { Some(a + 1) } else { None })
-        .unwrap()
 }
 
 fn is_valid_field(key: &str, value: &str) -> bool {
@@ -201,101 +163,94 @@ fn is_valid_passport(current: &HashMap<String, String>) -> bool {
     is_valid
 }
 
-fn sum_groups<State: Clone, AddLine: Fn(bool, &mut State, &str), GetCount: Fn(&State) -> usize>(
-    init: State,
-    add_line: AddLine,
+fn sum_groups<State, MergeLine: Fn(Option<State>, &str) -> State, GetCount: Fn(&State) -> usize>(
+    lines: Vec<String>,
+    merge_line: MergeLine,
     get_count: GetCount,
 ) -> usize {
     let mut sum = 0;
-    let mut state = init.clone();
-    let mut empty = true;
+    let mut maybe_state = None;
 
-    for line in io::stdin().lock().lines() {
-        let line = line.ok().unwrap();
+    for line in lines {
         if line.is_empty() {
-            sum += get_count(&state);
-            state = init.clone();
-            empty = true;
+            if let Some(state) = maybe_state {
+                sum += get_count(&state);
+                maybe_state = None;
+            }
         } else {
-            add_line(empty, &mut state, &line);
-            empty = false;
+            maybe_state = Some(merge_line(maybe_state, &line));
         }
     }
-    if !empty {
+    if let Some(state) = maybe_state {
         sum += get_count(&state);
     }
     sum
 }
 
-fn day4(validate_fields: bool) -> usize {
+fn day4(gold: bool) -> usize {
+    let validate_fields = gold;
     sum_groups(
-        HashMap::new(),
-        |first, current, line| {
+        lines("day4.txt"),
+        |current, line| {
+            let mut map = current.unwrap_or(HashMap::new());
             for pair in line.split(' ') {
-                let mut entries = pair.split(':');
-                let k = entries.next().unwrap();
-                let v = entries.next().unwrap();
-                if !validate_fields || is_valid_field(k, v) {
-                    current.insert(k.to_string(), v.to_string());
+                let (k, v) = scan_fmt!(pair, "{}:{}", String, String).ok().unwrap();
+                if !validate_fields || is_valid_field(&k, &v) {
+                    map.insert(k, v);
                 }
             }
+            map
         },
         |current| if is_valid_passport(current) { 1 } else { 0 },
     )
 }
 
-fn day4a() -> usize {
-    day4(false)
-}
+fn day5(gold: bool) -> usize {
+    let lines = lines("day5.txt");
+    let seats = lines.iter().map(|line| {
+        line.chars()
+            .map(|ch| match ch {
+                'F' | 'L' => 0,
+                'B' | 'R' => 1,
+                _ => panic!("Bad seat char: {}", ch),
+            })
+            .fold(0, |v, bit| v * 2 + bit)
+    });
 
-fn day4b() -> usize {
-    day4(true)
+    if !gold {
+        seats.max().unwrap()
+    } else {
+        let mut seats: Vec<usize> = seats.collect();
+        seats.sort();
+        let mut pairs = seats.iter().zip(seats.iter().skip(1));
+        pairs
+            .find_map(|(a, b)| if b - a > 1 { Some(a + 1) } else { None })
+            .unwrap()
+    }
 }
 
 fn day6(and: bool) -> usize {
     sum_groups(
-        HashSet::new(),
-        |first, set, line| {
-            let new = line.chars().collect();
-            if first {
-                *set = new;
-            } else {
-                *set = if and {
-                    set.intersection(&new).cloned().collect()
+        lines("day6.txt"),
+        |set, line| {
+            let new: HashSet<char> = line.chars().collect();
+            if let Some(old) = set {
+                if and {
+                    &old & &new
                 } else {
-                    set.union(&new).cloned().collect()
+                    &old | &new
                 }
+            } else {
+                new
             }
         },
         |set| set.len(),
     )
 }
 
-fn day6a() -> usize {
-    day6(false)
-}
-
-fn day6b() -> usize {
-    day6(true)
-}
-
 fn main() {
-    let args: Vec<_> = env::args().collect();
-    let day = &args[1][..];
-    let answer = match day {
-        "1a" => day1a(),
-        "1b" => day1b(),
-        "2a" => day2a(),
-        "2b" => day2b(),
-        "3a" => day3a(),
-        "3b" => day3b(),
-        "4a" => day4a(),
-        "4b" => day4b(),
-        "5a" => day5a(),
-        "5b" => day5b(),
-        "6a" => day6a(),
-        "6b" => day6b(),
-        _ => panic!("Unsupported day!"),
-    };
-    println!("{}: {}", day, answer);
+    let solutions = [day1, day2, day3, day4, day5, day6];
+    for (i, solution) in solutions.iter().enumerate() {
+        println!("{}: {}, {}", i + 1, solution(false), solution(true));
+    }
 }

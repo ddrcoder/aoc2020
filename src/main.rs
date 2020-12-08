@@ -248,18 +248,18 @@ fn day6(gold: bool) -> usize {
     )
 }
 
-fn can_reach(end: &str, here: &str, graph: &HashMap<String, HashMap<String, usize>>) -> bool {
-    if here == end {
+fn can_reach(end: &str, next: &str, graph: &HashMap<String, HashMap<String, usize>>) -> bool {
+    if next == end {
         true
-    } else if let Some(nested) = graph.get(here) {
+    } else if let Some(nested) = graph.get(next) {
         nested.keys().any(|key| can_reach(end, key, graph))
     } else {
         false
     }
 }
 
-fn total_nested(graph: &HashMap<String, HashMap<String, usize>>, here: &str, n: usize) -> usize {
-    n + if let Some(nested) = graph.get(here) {
+fn total_nested(graph: &HashMap<String, HashMap<String, usize>>, next: &str, n: usize) -> usize {
+    n + if let Some(nested) = graph.get(next) {
         nested
             .iter()
             .map(|(k, v)| total_nested(graph, k, n * v))
@@ -303,9 +303,85 @@ fn day7(gold: bool) -> usize {
         total_nested(&contains, "shiny gold", 1) - 1
     }
 }
+#[derive(Clone, Debug)]
+enum Op {
+    Nop,
+    Jmp,
+    Acc,
+}
+
+enum Result {
+    InfiniteLoop(i32),
+    Terminate(i32),
+}
+
+fn run(code: &[(Op, i32)], fix_ip: Option<usize>) -> Result {
+    let mut acc = 0;
+    let mut ip = 0;
+    let mut hits: Vec<usize> = code.iter().map(|_| 0).collect();
+    let fix = fix_ip.unwrap_or(code.len());
+    while ip < code.len() {
+        let hits = &mut hits[ip];
+        if *hits != 0 {
+            return Result::InfiniteLoop(acc);
+        }
+        *hits += 1;
+        let (op, arg) = code[ip].clone();
+        let op = match op {
+            Op::Nop if ip == fix => Op::Jmp,
+            Op::Jmp if ip == fix => Op::Nop,
+            _ => op,
+        };
+        ip = (ip as i32
+            + match op {
+                Op::Nop => 1,
+                Op::Jmp => arg,
+                Op::Acc => {
+                    acc += arg;
+                    1
+                }
+            }) as usize;
+    }
+    Result::Terminate(acc)
+}
+
+fn day8(gold: bool) -> usize {
+    let code: Vec<(Op, i32)> = lines("day8.txt")
+        .iter()
+        .map(|line| {
+            (
+                match &line[0..3] {
+                    "acc" => Op::Acc,
+                    "jmp" => Op::Jmp,
+                    // Took me 10 minutes to see that I initially wrote:
+                    // "nop" => Op::Acc,
+                    "nop" => Op::Nop,
+                    _ => panic!(),
+                },
+                line[4..].parse().ok().unwrap(),
+            )
+        })
+        .collect();
+    if !gold {
+        match run(&code[..], None) {
+            Result::InfiniteLoop(acc) => {
+                return acc as usize;
+            }
+            _ => {}
+        }
+    } else {
+        for fix in 0..code.len() {
+            match run(&code[..], Some(fix)) {
+                Result::Terminate(acc) => return acc as usize,
+                _ => {}
+            }
+        }
+    }
+    panic!();
+}
 
 fn main() {
-    let solutions = [day1, day2, day3, day4, day5, day6, day7];
+    let solutions = [day1, day2, day3, day4, day5, day6, day7, day8];
     for (i, solution) in solutions.iter().enumerate() {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));
     }

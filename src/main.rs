@@ -15,16 +15,16 @@ fn lines(filename: &str) -> Vec<String> {
         .collect()
 }
 
-fn sum2(nums: &HashSet<i32>, target: i32) -> Option<(i32, i32)> {
+fn sum2(nums: &HashSet<i64>, target: i64) -> Option<(i64, i64)> {
     for num in nums {
-        if nums.contains(&(target - num)) {
+        if nums.contains(&(target - num)) && num + num != target {
             return Some((*num, target - num));
         }
     }
     None
 }
 
-fn read_nums() -> HashSet<i32> {
+fn read_nums() -> HashSet<i64> {
     lines("day1.txt")
         .iter()
         .map(|str| str.parse().ok().unwrap())
@@ -311,14 +311,14 @@ enum Op {
 }
 
 enum Result {
-    InfiniteLoop(i32),
-    Terminate(i32),
+    InfiniteLoop(i64),
+    Terminate(i64),
 }
 
-fn run(code: &[(Op, i32)], fix_ip: Option<usize>) -> Result {
+fn run(code: &[(Op, i64)], fix_ip: Option<usize>) -> Result {
     let mut acc = 0;
     let mut ip = 0;
-    let mut hits: Vec<usize> = code.iter().map(|_| 0).collect();
+    let mut hits = vec![0; code.len()];
     let fix = fix_ip.unwrap_or(code.len());
     while ip < code.len() {
         let hits = &mut hits[ip];
@@ -332,7 +332,7 @@ fn run(code: &[(Op, i32)], fix_ip: Option<usize>) -> Result {
             Op::Jmp if ip == fix => Op::Nop,
             _ => op,
         };
-        ip = (ip as i32
+        ip = (ip as i64
             + match op {
                 Op::Nop => 1,
                 Op::Jmp => arg,
@@ -346,7 +346,7 @@ fn run(code: &[(Op, i32)], fix_ip: Option<usize>) -> Result {
 }
 
 fn day8(gold: bool) -> usize {
-    let code: Vec<(Op, i32)> = lines("day8.txt")
+    let code: Vec<(Op, i64)> = lines("day8.txt")
         .iter()
         .map(|line| {
             (
@@ -380,8 +380,194 @@ fn day8(gold: bool) -> usize {
     panic!();
 }
 
+fn day9(gold: bool) -> usize {
+    let lines = lines("day9.txt");
+    let input: Vec<i64> = lines.iter().map(|x| x.parse().ok().unwrap()).collect();
+    if !gold {
+        let mut hist: HashMap<i64, usize> = HashMap::new();
+        let mut set = HashSet::new();
+
+        let w = 25;
+        for i in 0..input.len() {
+            let n = input[i];
+            if i >= w {
+                if let Some((a, b)) = sum2(&set, n) {
+                } else {
+                    return n as usize;
+                }
+
+                let g = input[i - w];
+                let r = hist.get_mut(&g).unwrap();
+                *r -= 1;
+                if *r == 0 {
+                    set.remove(&g);
+                }
+            }
+            *hist.entry(n).or_insert_with(Default::default) += 1;
+            set.insert(n);
+        }
+        panic!();
+    } else {
+        let mut lo = 0;
+        let mut hi = 0;
+        let mut s = 0;
+        let target = 36845998;
+
+        loop {
+            if s < target {
+                s += input[hi];
+                hi += 1;
+            } else if s > target {
+                s -= input[lo];
+                lo += 1;
+            } else {
+                let r = &input[lo..hi];
+                return (r.iter().min().unwrap() + r.iter().max().unwrap()) as usize;
+            }
+        }
+    }
+}
+
+fn day10(gold: bool) -> usize {
+    let lines = lines("day10.txt");
+    let mut input: Vec<usize> = lines.iter().map(|x| x.parse().ok().unwrap()).collect();
+    input.push(0);
+    input.sort();
+    input.push(input[input.len() - 1] + 3);
+    let mut paths = vec![0; input.len()];
+    if !gold {
+        let mut c1 = 0;
+        let mut c3 = 0;
+        for i in 1..input.len() {
+            match input[i] - input[i - 1] {
+                1 => {
+                    c1 += 1;
+                }
+                3 => {
+                    c3 += 1;
+                }
+                _ => {
+                    panic!();
+                }
+            };
+        }
+        c1 * c3
+    } else {
+        paths[0] = 1;
+        for i in 1..input.len() {
+            let here = input[i];
+            for o in 1..=i {
+                let j = i - o;
+                let old = input[j];
+                if here - old > 3 {
+                    break;
+                }
+                paths[i] += paths[j];
+            }
+        }
+        if cfg!(debug) {
+            println!("{:?}", input);
+            println!("{:?}", paths);
+        }
+        paths[paths.len() - 1]
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Spot {
+    Floor,
+    Empty,
+    Occupied,
+}
+fn day11(gold: bool) -> usize {
+    let lines = lines("day11.txt");
+    let mut map: Vec<Vec<_>> = lines
+        .iter()
+        .map(|line| {
+            line.chars()
+                .map(|ch| match ch {
+                    '#' => Spot::Occupied,
+                    '.' => Spot::Floor,
+                    'L' => Spot::Empty,
+                    _ => panic!(),
+                })
+                .collect()
+        })
+        .collect();
+    let h = map.len();
+    let w = map[0].len();
+    loop {
+        let last = map.clone();
+        for i in 0..h {
+            for j in 0..w {
+                let mut occ = 0;
+                if last[i][j] == Spot::Floor {
+                    continue;
+                }
+                for dy in -1..=1 {
+                    for dx in -1..=1 {
+                        if dx == 0 && dy == 0 {
+                            continue;
+                        }
+                        for s in 1..=(if gold { w + h } else { 1 } as i32) {
+                            let ni = i as i32 + dy * s;
+                            let nj = j as i32 + dx * s;
+                            if ni < 0 || nj < 0 || ni >= h as i32 || nj >= w as i32 {
+                                break;
+                            }
+                            match last[ni as usize][nj as usize] {
+                                Spot::Occupied => {
+                                    occ += 1;
+                                    break;
+                                }
+                                Spot::Empty => {
+                                    break;
+                                }
+                                _ => {}
+                            };
+                        }
+                    }
+                }
+                let old = last[i][j].clone();
+                map[i][j] = match old {
+                    Spot::Empty if occ == 0 => Spot::Occupied,
+                    Spot::Occupied if occ >= 5 => Spot::Empty,
+                    _ => old,
+                };
+            }
+        }
+        if cfg!(debug) {
+            println!(
+                "{}",
+                map.iter()
+                    .map(|line| line
+                        .iter()
+                        .map(|s| match s {
+                            Spot::Floor => '.',
+                            Spot::Occupied => '#',
+                            Spot::Empty => 'L',
+                        })
+                        .collect::<String>())
+                    .fold("\n".to_string(), |mut str, line| {
+                        str.push_str(&line);
+                        str.push_str("\n");
+                        str
+                    })
+            );
+        }
+        if last == map {
+            return map
+                .iter()
+                .map(|line| line.iter().filter(|s| **s == Spot::Occupied).count())
+                .sum();
+        }
+    }
+}
+
 fn main() {
-    let solutions = [day1, day2, day3, day4, day5, day6, day7, day8];
+    let solutions = [
+        day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11,
+    ];
     for (i, solution) in solutions.iter().enumerate() {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));
     }

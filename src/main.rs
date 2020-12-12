@@ -564,9 +564,62 @@ fn day11(gold: bool) -> usize {
     }
 }
 
+fn day12(gold: bool) -> usize {
+    let lines = lines("day12.txt");
+
+    fn rotate(x: i32, y: i32, dx: i32, dy: i32, n: i32) -> (i32, i32, i32, i32) {
+        let (dx, dy) = match n {
+            270 => (-dy, dx),
+            180 => (-dx, -dy),
+            90 => (dy, -dx),
+            _ => panic!(),
+        };
+        (x, y, dx, dy)
+    };
+
+    if !gold {
+        let (x, y, _, _) = lines
+            .iter()
+            .fold((0i32, 0i32, 1i32, 0i32), |(x, y, dx, dy), line| {
+                let ch = line.chars().next().unwrap();
+                let n = line[1..].parse().ok().unwrap();
+                match ch {
+                    'F' => (x + n * dx, y + n * dy, dx, dy),
+                    'N' => (x, y + n, dx, dy),
+                    'E' => (x + n, y, dx, dy),
+                    'S' => (x, y - n, dx, dy),
+                    'W' => (x - n, y, dx, dy),
+                    'L' => rotate(x, y, dx, dy, 360 - n),
+                    'R' => rotate(x, y, dx, dy, n),
+                    _ => panic!(),
+                }
+            });
+        (x.abs() + y.abs()) as usize
+    } else {
+        let (x, y, _, _) = lines
+            .iter()
+            .fold((0i32, 0i32, 10i32, 1i32), |(x, y, wx, wy), line| {
+                let ch = line.chars().next().unwrap();
+                let n = line[1..].parse().ok().unwrap();
+                match ch {
+                    'F' => (x + n * wx, y + n * wy, wx, wy),
+                    'N' => (x, y, wx, wy + n),
+                    'E' => (x, y, wx + n, wy),
+                    'S' => (x, y, wx, wy - n),
+                    'W' => (x, y, wx - n, wy),
+                    'L' => rotate(x, y, wx, wy, 360 - n),
+                    'R' => rotate(x, y, wx, wy, n),
+                    _ => panic!(),
+                }
+            });
+        (x.abs() + y.abs()) as usize
+    }
+}
+
 fn main() {
     let solutions = [
-        day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11,
+        //day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11,
+        day12,
     ];
     for (i, solution) in solutions.iter().enumerate() {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));

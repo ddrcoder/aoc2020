@@ -1,3 +1,4 @@
+#![feature(bindings_after_at)]
 #[macro_use]
 extern crate scan_fmt;
 
@@ -565,41 +566,34 @@ fn day11(gold: bool) -> usize {
 }
 
 fn day12(gold: bool) -> usize {
-    let lines = lines("day12.txt");
-
-    fn rotate(x: i32, y: i32, dx: i32, dy: i32, n: i32) -> (i32, i32, i32, i32) {
-        let (dx, dy) = match n {
+    fn rotate((dx, dy): (i32, i32), n: i32) -> (i32, i32) {
+        match n {
             270 => (-dy, dx),
             180 => (-dx, -dy),
             90 => (dy, -dx),
             _ => panic!(),
-        };
-        (x, y, dx, dy)
-    };
-
-    let start = if gold {
-        (0i32, 0i32, 10i32, 1i32)
-    } else {
-        (0i32, 0i32, 1i32, 0i32)
-    };
-    let (x, y, _, _) = lines.iter().fold(start, |(x, y, dx, dy), line| {
-        let ch = line.chars().next().unwrap();
-        let n = line[1..].parse().ok().unwrap();
-        match ch {
-            'F' => (x + n * dx, y + n * dy, dx, dy),
-            'N' if gold => (x, y, dx, dy + n),
-            'E' if gold => (x, y, dx + n, dy),
-            'S' if gold => (x, y, dx, dy - n),
-            'W' if gold => (x, y, dx - n, dy),
-            'N' => (x, y + n, dx, dy),
-            'E' => (x + n, y, dx, dy),
-            'S' => (x, y - n, dx, dy),
-            'W' => (x - n, y, dx, dy),
-            'L' => rotate(x, y, dx, dy, 360 - n),
-            'R' => rotate(x, y, dx, dy, n),
-            _ => panic!(),
         }
-    });
+    };
+    let start = ((0, 0), if gold { (10, 1) } else { (1, 0) });
+    let ((x, y), _) = lines("day12.txt")
+        .iter()
+        .fold(start, |(p @ (x, y), d @ (dx, dy)), line| {
+            let n = line[1..].parse().ok().unwrap();
+            match line.chars().next().unwrap() {
+                'F' => ((x + n * dx, y + n * dy), d),
+                'N' if gold => (p, (dx, dy + n)),
+                'E' if gold => (p, (dx + n, dy)),
+                'S' if gold => (p, (dx, dy - n)),
+                'W' if gold => (p, (dx - n, dy)),
+                'N' => ((x, y + n), d),
+                'E' => ((x + n, y), d),
+                'S' => ((x, y - n), d),
+                'W' => ((x - n, y), d),
+                'L' => (p, rotate(d, 360 - n)),
+                'R' => (p, rotate(d, n)),
+                _ => panic!(),
+            }
+        });
     (x.abs() + y.abs()) as usize
 }
 

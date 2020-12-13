@@ -629,10 +629,21 @@ fn day13(gold: bool) -> usize {
 
         (bus - start % bus) * bus
     } else {
-        (0..)
+        let (offset, longest) = busses
+            .iter()
+            .enumerate()
+            .filter_map(|(i, b)| b.map(|v| (i, v)))
+            .max_by_key(|(_, b)| *b)
+            .unwrap();
+        println!("{} {} ", longest, offset);
+        (1..)
+            .map(|i| longest * i - offset)
             .filter(|t| {
+                if t % 1000 == 0 {
+                    println!("{}", t);
+                }
                 busses.iter().enumerate().all(|(i, r)| match r {
-                    Some(r) => (t + 1) % r == 0,
+                    Some(r) => (t + i) % r == 0,
                     None => true,
                 })
             })

@@ -7,6 +7,7 @@ use std::collections::hash_set::HashSet;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::io::Read;
 use std::iter::Iterator;
 
 fn lines(filename: &str) -> Vec<String> {
@@ -14,6 +15,16 @@ fn lines(filename: &str) -> Vec<String> {
         .lines()
         .map(|line| line.ok().unwrap())
         .collect()
+}
+
+fn content(filename: &str) -> String {
+    let mut r = String::new();
+    File::open(filename)
+        .ok()
+        .unwrap()
+        .read_to_string(&mut r)
+        .ok();
+    r
 }
 
 fn sum2(nums: &HashSet<i64>, target: i64) -> Option<(i64, i64)> {
@@ -597,10 +608,43 @@ fn day12(gold: bool) -> usize {
     (x.abs() + y.abs()) as usize
 }
 
+fn day13(gold: bool) -> usize {
+    let input = lines("day13.txt");
+    println!("{:?}", input);
+    let start: usize = input[0].parse().ok().unwrap();
+    let busses: Vec<Option<usize>> = input[1]
+        .split(',')
+        .map(|s| match s {
+            "x" => None,
+            s => s.parse().ok(),
+        })
+        .collect();
+    if !gold {
+        let bus = busses
+            .into_iter()
+            .filter_map(|x| x)
+            .min_by_key(|b| (b - start % *b) % b)
+            .unwrap();
+        println!("{}", bus);
+
+        (bus - start % bus) * bus
+    } else {
+        (0..)
+            .filter(|t| {
+                busses.iter().enumerate().all(|(i, r)| match r {
+                    Some(r) => (t + 1) % r == 0,
+                    None => true,
+                })
+            })
+            .next()
+            .unwrap()
+    }
+}
+
 fn main() {
     let solutions = [
         //day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11,
-        day12,
+        day13,
     ];
     for (i, solution) in solutions.iter().enumerate() {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));

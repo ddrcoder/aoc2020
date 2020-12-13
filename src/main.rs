@@ -629,26 +629,28 @@ fn day13(gold: bool) -> usize {
 
         (bus - start % bus) * bus
     } else {
-        let (offset, longest) = busses
+        busses
             .iter()
+            .cloned()
             .enumerate()
-            .filter_map(|(i, b)| b.map(|v| (i, v)))
-            .max_by_key(|(_, b)| *b)
-            .unwrap();
-        println!("{} {} ", longest, offset);
-        (1..)
-            .map(|i| longest * i - offset)
-            .filter(|t| {
-                if t % 1000 == 0 {
-                    println!("{}", t);
-                }
-                busses.iter().enumerate().all(|(i, r)| match r {
-                    Some(r) => (t + i) % r == 0,
-                    None => true,
-                })
+            // Keep only the busses which are defined
+            .filter_map(|(i, b)| b.map(|b| (i, b)))
+            .fold((0, 1), |(time, product), (index, interval)| {
+                (
+                    // Find the next time which lines up by advancing int steps
+                    // of the cumulative product of the prior busses' intervals,
+                    // thus keeping them all on a stop.
+                    (0..interval)
+                        .map(|s| time + s * product)
+                        .filter(|t| (t + index) % interval == 0)
+                        .next()
+                        .unwrap(),
+                    // Every bus makes us advance in bigger steps as we
+                    // accumulate a large product.
+                    product * interval,
+                )
             })
-            .next()
-            .unwrap()
+            .0
     }
 }
 

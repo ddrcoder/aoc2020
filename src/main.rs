@@ -653,11 +653,74 @@ fn day13(gold: bool) -> usize {
             .0
     }
 }
+fn day14(gold: bool) -> usize {
+    let input = lines("day14.txt");
+    let mut mem = HashMap::new();
+    if !gold {
+        let mut or = 0;
+        let mut and = 0;
+        for line in input {
+            if let Some(mask) = line.strip_prefix("mask = ") {
+                let (new_or, new_and) =
+                    mask.chars()
+                        .rev()
+                        .enumerate()
+                        .fold((0, !0), |(or, and), (b, ch)| match ch {
+                            '1' => (or | (1 << b), and),
+                            '0' => (or, and & !(1 << b)),
+                            _ => (or, and),
+                        });
+                or = new_or;
+                and = new_and;
+            } else {
+                let (addr, value) = scan_fmt!(&line, "mem[{}] = {}", usize, usize).ok().unwrap();
+                let slot = mem.entry(addr).or_insert(0);
+                *slot = (value & and) | or;
+            }
+        }
+    } else {
+        let mut or = 0;
+        let mut float: usize = 0;
+        for line in input {
+            if let Some(mask) = line.strip_prefix("mask = ") {
+                let (new_or, new_float) =
+                    mask.chars()
+                        .rev()
+                        .enumerate()
+                        .fold((0, 0), |(or, float), (b, ch)| match ch {
+                            '1' => (or | (1 << b), float),
+                            'X' => (or, float | (1 << b)),
+                            _ => (or, float),
+                        });
+                or = new_or;
+                float = new_float;
+            } else {
+                let (addr, value) = scan_fmt!(&line, "mem[{}] = {}", usize, usize).ok().unwrap();
+                let bits = (0..64).filter(|b| 0 != ((1 << b) & float));
+
+                for v in 0..(1 << float.count_ones()) {
+                    let spread: usize = bits
+                        .clone()
+                        .enumerate()
+                        .map(|(src_bit, dst_bit)| (1 & (v >> src_bit)) << dst_bit)
+                        .sum();
+                    println!("v={:b} f={:b}, s={:b}", v, float, spread);
+                    let addr = (addr | or) & !float | spread;
+                    let slot = mem.entry(addr).or_insert(0);
+                    *slot = value;
+                }
+            }
+        }
+    }
+    println!("{}", mem.keys().max().unwrap());
+    println!("{}", mem.len());
+    mem.values().sum()
+}
 
 fn main() {
     let solutions = [
         //day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11,
-        day13,
+        day14,
     ];
     for (i, solution) in solutions.iter().enumerate() {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));

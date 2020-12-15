@@ -610,7 +610,6 @@ fn day12(gold: bool) -> usize {
 
 fn day13(gold: bool) -> usize {
     let input = lines("day13.txt");
-    println!("{:?}", input);
     let start: usize = input[0].parse().ok().unwrap();
     let busses: Vec<Option<usize>> = input[1]
         .split(',')
@@ -625,7 +624,6 @@ fn day13(gold: bool) -> usize {
             .filter_map(|x| x)
             .min_by_key(|b| (b - start % *b) % b)
             .unwrap();
-        println!("{}", bus);
 
         (bus - start % bus) * bus
     } else {
@@ -656,71 +654,71 @@ fn day13(gold: bool) -> usize {
 fn day14(gold: bool) -> usize {
     let input = lines("day14.txt");
     let mut mem = HashMap::new();
-    if !gold {
-        let mut or = 0;
-        let mut and = 0;
-        for line in input {
-            if let Some(mask) = line.strip_prefix("mask = ") {
-                let (new_or, new_and) =
-                    mask.chars()
-                        .rev()
-                        .enumerate()
-                        .fold((0, !0), |(or, and), (b, ch)| match ch {
-                            '1' => (or | (1 << b), and),
-                            '0' => (or, and & !(1 << b)),
-                            _ => (or, and),
-                        });
-                or = new_or;
-                and = new_and;
-            } else {
-                let (addr, value) = scan_fmt!(&line, "mem[{}] = {}", usize, usize).ok().unwrap();
-                let slot = mem.entry(addr).or_insert(0);
-                *slot = (value & and) | or;
-            }
-        }
-    } else {
-        let mut or = 0;
-        let mut float: usize = 0;
-        for line in input {
-            if let Some(mask) = line.strip_prefix("mask = ") {
-                let (new_or, new_float) =
-                    mask.chars()
-                        .rev()
-                        .enumerate()
-                        .fold((0, 0), |(or, float), (b, ch)| match ch {
-                            '1' => (or | (1 << b), float),
-                            'X' => (or, float | (1 << b)),
-                            _ => (or, float),
-                        });
-                or = new_or;
-                float = new_float;
-            } else {
-                let (addr, value) = scan_fmt!(&line, "mem[{}] = {}", usize, usize).ok().unwrap();
+    let (mut or, mut and, mut float) = (0u64, 0u64, 0u64);
+    for line in input {
+        if let Some(mask) = line.strip_prefix("mask = ") {
+            let (new_or, new_and, new_float) = mask.chars().rev().enumerate().fold(
+                (0, !0, 0),
+                |(or, and, float), (b, ch)| match ch {
+                    '1' => (or | (1 << b), and, float),
+                    '0' => (or, and & !(1 << b), float),
+                    'X' => (or, and, float | (1 << b)),
+                    _ => (or, and, float),
+                },
+            );
+            or = new_or;
+            and = new_and;
+            float = new_float;
+        } else if let Some((addr, value)) = scan_fmt!(&line, "mem[{}] = {}", u64, u64).ok() {
+            if gold {
                 let bits = (0..64).filter(|b| 0 != ((1 << b) & float));
 
                 for v in 0..(1 << float.count_ones()) {
-                    let spread: usize = bits
+                    // Generate all dense bitvectors of the length necessary.
+                    let spread: u64 = bits
                         .clone()
-                        .enumerate()
+                        .enumerate() // Effecitvely a map of src bit ->dst bit.
                         .map(|(src_bit, dst_bit)| (1 & (v >> src_bit)) << dst_bit)
-                        .sum();
-                    println!("v={:b} f={:b}, s={:b}", v, float, spread);
+                        // or or them
+                        .fold(0, std::ops::BitOr::bitor);
                     let addr = (addr | or) & !float | spread;
                     let slot = mem.entry(addr).or_insert(0);
                     *slot = value;
                 }
+            } else {
+                let slot = mem.entry(addr).or_insert(0);
+                *slot = (value & and) | or;
             }
+        } else {
+            panic!();
         }
     }
-    println!("{}", mem.keys().max().unwrap());
-    println!("{}", mem.len());
-    mem.values().sum()
+    mem.values().sum::<u64>() as usize
+}
+
+fn day15(gold: bool) -> usize {
+    let line = content("day15.txt");
+    let mut nums = line.split(',').map(|str| str.parse().ok().unwrap());
+    let mut map = HashMap::new();
+    let mut speak = 0;
+    for (t, v) in nums.enumerate() {
+        map.insert(v, t + 1);
+        speak = v
+    }
+    for t in map.len()..(if gold { 30000000 } else { 2020 }) {
+        if let Some(last_mention) = map.insert(speak, t) {
+            speak = t - last_mention;
+        } else {
+            speak = 0;
+        }
+    }
+    speak
 }
 
 fn main() {
     let solutions = [
-        //day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11,
-        day14,
+        day1, day2, day3, day4, day5, day6, day7, day8, //
+        day9, day10, day11, day12, day13, day14, day15,
     ];
     for (i, solution) in solutions.iter().enumerate() {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));

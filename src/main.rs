@@ -8,6 +8,7 @@ use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
+use std::iter::once;
 use std::iter::Iterator;
 
 fn lines(filename: &str) -> Vec<String> {
@@ -403,7 +404,7 @@ fn day9(gold: bool) -> usize {
         for i in 0..input.len() {
             let n = input[i];
             if i >= w {
-                if let Some((a, b)) = sum2(&set, n) {
+                if let Some(_) = sum2(&set, n) {
                 } else {
                     return n as usize;
                 }
@@ -697,11 +698,13 @@ fn day14(gold: bool) -> usize {
 }
 
 fn day15(gold: bool) -> usize {
-    let line = content("day15.txt");
-    let mut nums = line.split(',').map(|str| str.parse().ok().unwrap());
     let mut map = HashMap::new();
     let mut speak = 0;
-    for (t, v) in nums.enumerate() {
+    for (t, v) in content("day15.txt")
+        .split(',')
+        .map(|str| str.parse().ok().unwrap())
+        .enumerate()
+    {
         map.insert(v, t + 1);
         speak = v
     }
@@ -715,10 +718,139 @@ fn day15(gold: bool) -> usize {
     speak
 }
 
+fn day16(gold: bool) -> usize {
+    fn parse_fields(txt: &str) -> Vec<(String, u16, u16, u16, u16)> {
+        txt.split("\n")
+            .map(|s| {
+                scan_fmt!(s, "{/[^:]*/}: {}-{} or {}-{}", String, u16, u16, u16, u16)
+                    .ok()
+                    .unwrap_or_else(|| {
+                        panic!("Bad line: {}", s);
+                    })
+            })
+            .collect()
+    }
+    fn parse_ticket(txt: &str) -> Vec<u16> {
+        txt.split(',').map(|s| s.parse().ok().unwrap()).collect()
+    }
+    fn parse_my_ticket(txt: &str) -> Vec<u16> {
+        parse_ticket(txt.strip_prefix("your ticket:\n").unwrap())
+    }
+    fn parse_nearby_tickets(txt: &str) -> Vec<Vec<u16>> {
+        txt.strip_prefix("nearby tickets:\n")
+            .unwrap()
+            .split('\n')
+            .filter(|s| !s.is_empty())
+            .map(parse_ticket)
+            .collect()
+    }
+    fn could_be_field(v: u16, (_, lo1, hi1, lo2, hi2): &(String, u16, u16, u16, u16)) -> bool {
+        (*lo1..=*hi1).contains(&v) || (*lo2..=*hi2).contains(&v)
+    }
+
+    let input = content("day16.txt");
+    let mut blocks = input.split("\n\n");
+    let fields = parse_fields(blocks.next().unwrap());
+    let mine = parse_my_ticket(blocks.next().unwrap());
+    let nearby = parse_nearby_tickets(blocks.next().unwrap());
+    let is_valid_ticket = |ticket: &Vec<u16>| {
+        !ticket
+            .iter()
+            .cloned()
+            .any(|v| !fields.iter().any(|field| could_be_field(v, field)))
+    };
+
+    if !gold {
+        nearby
+            .iter()
+            .map(|ticket| {
+                let bad: usize = ticket
+                    .iter()
+                    .cloned()
+                    .filter(|v| !fields.iter().any(|field| could_be_field(*v, field)))
+                    .sum::<u16>() as usize;
+                bad
+            })
+            .sum::<usize>()
+    } else {
+        let mut possible_fields: Vec<HashSet<u8>> = fields
+            .iter()
+            .map(|_| (0..fields.len()).map(|i| i as u8).collect())
+            .collect();
+        // NB: For my input "your ticket" wasn't necessary for unambiguous mapping.
+        let all_tickets = once(&mine).chain(nearby.iter());
+        for ticket in all_tickets.clone() {
+            if !is_valid_ticket(ticket) {
+                continue;
+            }
+            for (v, field_indices) in ticket.iter().zip(possible_fields.iter_mut()) {
+                let mut to_remove = HashSet::new();
+                for field_index in field_indices.iter() {
+                    let field = &fields[*field_index as usize];
+                    if !could_be_field(*v, field) {
+                        to_remove.insert(*field_index);
+                    }
+                }
+                if !to_remove.is_empty() {
+                    *field_indices = field_indices.difference(&to_remove).cloned().collect();
+                }
+            }
+        }
+
+        let mut assigned = vec![None; fields.len()];
+        let mut remaining = fields.len();
+        while remaining > 0 {
+            for (col, field_indices) in possible_fields.iter_mut().enumerate() {
+                let mut to_remove = HashSet::new();
+                for field_index in field_indices.iter() {
+                    if assigned[*field_index as usize].is_some() {
+                        to_remove.insert(*field_index);
+                    }
+                }
+                if !to_remove.is_empty() {
+                    *field_indices = field_indices.difference(&to_remove).cloned().collect();
+                }
+                if field_indices.len() == 1 {
+                    let field_index = field_indices.iter().next().unwrap();
+                    assert!(assigned[*field_index as usize].is_none());
+                    assigned[*field_index as usize] = Some(col);
+                    field_indices.clear();
+                    remaining -= 1;
+                }
+            }
+        }
+        let assigned: Vec<_> = assigned
+            .into_iter()
+            .enumerate()
+            .map(|(fid, src_col)| (&fields[fid], src_col.unwrap()))
+            .collect();
+
+        for (field, src_col) in assigned.iter() {
+            for (tn, ticket) in all_tickets.clone().enumerate() {
+                if is_valid_ticket(ticket) {
+                    assert!(
+                        could_be_field(ticket[*src_col], field),
+                        "t#{}[{}] = {} can't be {}",
+                        tn,
+                        src_col,
+                        ticket[*src_col],
+                        field.0
+                    );
+                }
+            }
+        }
+        assigned
+            .iter()
+            .filter(|(field, _)| field.0.starts_with("departure"))
+            .map(|(_, src_col)| mine[*src_col] as usize)
+            .product::<usize>() as usize
+    }
+}
+
 fn main() {
     let solutions = [
-        day1, day2, day3, day4, day5, day6, day7, day8, //
-        day9, day10, day11, day12, day13, day14, day15,
+        day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, //
+        day11, day12, day13, day14, day15, day16,
     ];
     for (i, solution) in solutions.iter().enumerate() {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));

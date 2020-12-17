@@ -847,10 +847,57 @@ fn day16(gold: bool) -> usize {
     }
 }
 
+const D: i32 = 9;
+fn day17(gold: bool) -> usize {
+    let lines = lines("day17.txt");
+    let mut vol = HashSet::new();
+    for (y, line) in lines.iter().enumerate() {
+        for (x, ch) in line.chars().enumerate() {
+            if ch == '#' {
+                vol.insert((x as i32, y as i32, 0 as i32));
+            }
+        }
+    }
+
+    for i in 0..=6 {
+        for z in (-i..3 + i) {
+            println!();
+            for y in (-i..3 + i) {
+                for x in (-i..3 + i) {
+                    print!("{}", vol.contains(&(x, y, z)) as u8);
+                }
+                println!();
+            }
+        }
+        println!("before {}: {} active", i, vol.len());
+        let mut active_neighbors = HashMap::new();
+        for (x, y, z) in vol.iter().cloned() {
+            for nz in (z - 1)..=(z + 1) {
+                for ny in (y - 1)..=(y + 1) {
+                    for nx in (x - 1)..=(x + 1) {
+                        if nx == x && ny == y && nz == z {
+                            continue;
+                        }
+                        *active_neighbors.entry((nx, ny, nz)).or_insert(0) += 1;
+                    }
+                }
+            }
+        }
+        vol = active_neighbors
+            .iter()
+            .filter_map(|(p, n)| match n {
+                3 => Some(*p),
+                2 if vol.contains(&p) => Some(*p),
+                _ => None,
+            })
+            .collect();
+    }
+    return vol.len();
+}
+
 fn main() {
     let solutions = [
-        day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, //
-        day11, day12, day13, day14, day15, day16,
+        day17, //day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, // day11, day12, day13, day14, //day15, day16,
     ];
     for (i, solution) in solutions.iter().enumerate() {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));

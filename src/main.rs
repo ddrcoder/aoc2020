@@ -847,38 +847,29 @@ fn day16(gold: bool) -> usize {
     }
 }
 
-const D: i32 = 9;
 fn day17(gold: bool) -> usize {
     let lines = lines("day17.txt");
     let mut vol = HashSet::new();
     for (y, line) in lines.iter().enumerate() {
         for (x, ch) in line.chars().enumerate() {
             if ch == '#' {
-                vol.insert((x as i32, y as i32, 0 as i32));
+                vol.insert((x as i32, y as i32, 0 as i32, 0 as i32));
             }
         }
     }
 
-    for i in 0..=6 {
-        for z in (-i..3 + i) {
-            println!();
-            for y in (-i..3 + i) {
-                for x in (-i..3 + i) {
-                    print!("{}", vol.contains(&(x, y, z)) as u8);
-                }
-                println!();
-            }
-        }
-        println!("before {}: {} active", i, vol.len());
+    for _ in 0..6 {
         let mut active_neighbors = HashMap::new();
-        for (x, y, z) in vol.iter().cloned() {
-            for nz in (z - 1)..=(z + 1) {
-                for ny in (y - 1)..=(y + 1) {
-                    for nx in (x - 1)..=(x + 1) {
-                        if nx == x && ny == y && nz == z {
-                            continue;
+        for (x, y, z, w) in vol.iter().cloned() {
+            for nw in if gold { (w - 1)..=(w + 1) } else { w..=w } {
+                for nz in (z - 1)..=(z + 1) {
+                    for ny in (y - 1)..=(y + 1) {
+                        for nx in (x - 1)..=(x + 1) {
+                            if nx == x && ny == y && nz == z && nw == w {
+                                continue;
+                            }
+                            *active_neighbors.entry((nx, ny, nz, nw)).or_insert(0) += 1;
                         }
-                        *active_neighbors.entry((nx, ny, nz)).or_insert(0) += 1;
                     }
                 }
             }

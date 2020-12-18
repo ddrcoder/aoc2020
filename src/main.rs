@@ -885,10 +885,94 @@ fn day17(gold: bool) -> usize {
     }
     return vol.len();
 }
+fn day18(gold: bool) -> usize {
+    let lines = lines("day18.txt");
+    let mut ops = vec![];
+    let mut values = vec![];
+    let mut sum = 0;
+    fn eval(op: char, v1: i64, v2: i64) -> i64 {
+        match op {
+            '*' => v1 * v2,
+            '+' => v1 + v2,
+            _ => panic!(),
+        }
+    }
+
+    for line in [
+        "2 * 3 + (4 * 5)",
+        "1 + (2 * 3) + (4 * (5 + 6))",
+        "5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))",
+        "5 + (8 * 3 + 9 + 3 * 4 * 3)",
+        "((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2",
+        "9 * 8 + 2 + (4 * (2 * 2 + 9 * 2) * 9 * 3 * 8) + 8 * 5",
+    ]
+    .iter()
+    {}
+    for line in lines.iter() {
+        for ch in line.chars() {
+            println!("{} {} {:?} {:?}", line, ch, values, ops);
+            match ch {
+                '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                    let value = ch as i64 - '0' as i64;
+                    if let Some(op) = ops.pop() {
+                        if op == '(' {
+                            values.push(value);
+                            ops.push('(');
+                        } else if let Some(last) = values.pop() {
+                            values.push(eval(op, value, last));
+                        }
+                    } else {
+                        values.push(value);
+                    }
+                }
+                '*' | '+' | '(' => {
+                    ops.push(ch);
+                }
+                ')' => {
+                    while let Some(op) = ops.pop() {
+                        if op == '(' {
+                            if let Some(op) = ops.pop() {
+                                if op == '(' {
+                                    ops.push('(');
+                                    break;
+                                }
+                                let a = values.pop().unwrap_or_else(|| {
+                                    panic!("in {} v{:?} o{:?}", line, &values, &ops)
+                                });
+                                if let Some(b) = values.pop() {
+                                    values.push(eval(op, a, b));
+                                } else {
+                                    values.push(a);
+                                }
+                            }
+                            break;
+                        }
+                        let a = values
+                            .pop()
+                            .unwrap_or_else(|| panic!("in {} v{:?} o{:?}", line, &values, &ops));
+                        let b = values
+                            .pop()
+                            .unwrap_or_else(|| panic!("in {} v{:?} o{:?}", line, &values, &ops));
+                        values.push(eval(op, a, b));
+                    }
+                }
+
+                ' ' => {}
+                _ => panic!("{}??", ch),
+            }
+        }
+        assert_eq!(values.len(), 1, "'{}' v{:?} o{:?}", line, values, ops);
+        assert_eq!(ops.len(), 0, "'{}' v{:?} o{:?}", line, values, ops);
+        println!("{} = {}", line, values.last().unwrap());
+        sum += values.pop().unwrap();
+    }
+
+    return sum as usize;
+}
 
 fn main() {
     let solutions = [
-        day17, //day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, // day11, day12, day13, day14, //day15, day16,
+        day18, //day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, // day11, day12, day13, day14, //day15, day16,
     ];
     for (i, solution) in solutions.iter().enumerate() {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));

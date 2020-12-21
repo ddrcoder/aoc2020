@@ -1002,7 +1002,10 @@ fn day20(gold: bool) -> usize {
             let num = scan_fmt!(lines.next().unwrap(), "Tile {}:", usize)
                 .ok()
                 .unwrap();
-            (num, lines.map(|str| str.chars().collect()).collect())
+            (
+                num,
+                lines.map(|str| str.chars().collect()).take(10).collect(),
+            )
         })
         .collect();
     let mut sigs = HashMap::new();
@@ -1022,7 +1025,6 @@ fn day20(gold: bool) -> usize {
         */
         assert_eq!(tile.len(), 10, "{:?}", tile);
         assert_eq!(tile[9].len(), 10, "{:?}", tile);
-        dbg!(tile);
         let sig: String = match if flip { 3 - edge } else { edge } {
             0 => tile[0].iter().cloned().collect(),
             1 => tile.iter().map(|r| r[9]).collect(),
@@ -1051,23 +1053,49 @@ fn day20(gold: bool) -> usize {
 
     println!("Filtered into:\n{:?}", sigs,);
     let mut choices = vec![];
+    fn print_tile(id: usize, tile: &Vec<Vec<char>>, flip: bool, rot: u8, sig: &str) {
+        println!("\n#{}, F{}  R{} % {}", id, flip as u8, rot, sig);
+        for y in 0..10 {
+            for x in 0..10 {
+                let (j, i) = match rot {
+                    0 if flip => (x, y),
+                    1 if flip => (y, 9 - x),
+                    2 if flip => (9 - x, y),
+                    3 if flip => (9 - x, 9 - y),
+                    0 => (y, x),
+                    1 => (9 - x, y),
+                    2 => (y, 9 - x),
+                    3 => (9 - y, 9 - x),
+                    _ => panic!(),
+                };
+
+                print!("{}", tile[i][j]);
+            }
+            println!();
+        }
+    }
     fn find_tiles(
         tiles: &HashMap<usize, Vec<Vec<char>>>,
-        choices: &mut Vec<(usize, bool, u8)>,
+        choices: &mut Vec<(usize, bool, u8, String)>,
         sigs: &HashMap<String, Vec<(usize, bool, u8)>>,
     ) -> bool {
         if choices.len() == 9 {
+            println!("------");
+            for (id, flip, rot, sig) in choices.iter() {
+                let tile = tiles.get(id).unwrap();
+                print_tile(*id, &tile, *flip, *rot, sig);
+            }
             return true;
         }
         let sig_above = if choices.len() >= 3 {
-            let (id, flip, rot) = choices[choices.len() - 3];
+            let (id, flip, rot, _) = choices[choices.len() - 3];
             // 0->1 1->0 2->3 3->2
             Some(edge_sig(tiles.get(&id).unwrap(), flip, (5 - rot) % 4))
         } else {
             None
         };
         let sig_left = if choices.len() % 3 != 0 {
-            let (id, flip, rot) = choices[choices.len() - 1];
+            let (id, flip, rot, _) = choices[choices.len() - 1];
             // 0->1 1->0 2->3 3->2
             Some(edge_sig(tiles.get(&id).unwrap(), flip, (5 - rot) % 4))
         } else {
@@ -1080,14 +1108,17 @@ fn day20(gold: bool) -> usize {
                 .flat_map(|options| options.iter().cloned())
                 .filter(|(id, _, _)| !used(*id))
                 //.cloned()
-                .map(|(id, flip, edge)| (id, flip, (4 + side - edge) % 4))
+                //.map(|(id, flip, edge)| (id, flip, (4 + side - edge) % 4))
+                .map(|(id, flip, edge)| (id, flip, edge % 4, sig.to_string()))
                 .collect::<Vec<_>>()
         };
         if let Some(sig_above) = &sig_above {
             for choice in get_options(sig_above, 0) {
+                let (id, flip, rot, _) = &choice;
                 if let Some(sig_left) = &sig_left {
-                    continue;
-                    //???
+                    if &edge_sig(tiles.get(id).unwrap(), *flip, 3 - *rot) != sig_left {
+                        continue;
+                    }
                 }
                 choices.push(choice);
                 if find_tiles(tiles, choices, sigs) {
@@ -1104,14 +1135,6 @@ fn day20(gold: bool) -> usize {
                 choices.pop();
             }
         }
-        println!();
-        for (id, flip, rot) in choices.iter() {
-            let tile = tiles.get(id).unwrap();
-            println!("F{}, R{}", flip, rot);
-            for line in tile {
-                println!("{}", line.iter().cloned().collect::<String>());
-            }
-        }
         false
     }
     for (sig, edges) in &sigs {
@@ -1123,6 +1146,7 @@ fn day20(gold: bool) -> usize {
                 *id,
                 *flip,
                 (5 - *edge) % 4, // rotate it so this edge is on the right (edge 1)
+                sig.clone(),
             ));
             if find_tiles(&tiles, &mut choices, &sigs) {
                 assert_eq!(choices.len(), 9);

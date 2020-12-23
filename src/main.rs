@@ -1253,60 +1253,48 @@ mod ignore {
 }
 
 fn day23(gold: bool) -> usize {
-    let mut cups: Vec<_> = "253149867".chars().map(|c| c as u32 - '0' as u32).collect();
-    let mut current: u32 = *cups.first().unwrap();
-    let max = if gold { 40 } else { 9 };
-    for n in 10..=max {
-        cups.push(n);
+    let (turns, max) = if gold { (10000000, 1000000) } else { (100, 9) };
+    let mut succ: Vec<u32> = vec![0; max as usize + 1];
+    let s = "253149867";
+    let cups = s.chars().map(|ch| ch as u32 - '0' as u32).chain(10..=max);
+    let mut current = cups.clone().next().unwrap();
+    for (from, to) in cups.clone().zip(cups.clone().skip(1)) {
+        succ[from as usize] = to;
     }
-    let mut pickup = vec![];
-    for m in 1..=100 {
-        let (i, _) = cups
-            .iter()
-            .enumerate()
-            .find(|(i, c)| **c == current)
-            .unwrap();
-        println!("{:4}: {:5}@{:5} {:?}", current, i, m, cups);
-        let mid = cups.len() - 4;
-        if mid > i {
-            cups.rotate_right(mid - i);
-        } else if mid < i {
-            cups.rotate_right(i - mid);
-        }
-        let mut pickup = cups.split_off(mid + 1);
+    succ[cups.clone().rev().next().unwrap() as usize] = current;
+    for turn in 1..=turns {
+        let pickup1 = succ[current as usize];
+        let pickup2 = succ[pickup1 as usize];
+        let pickup3 = succ[pickup2 as usize];
+        let next = succ[pickup3 as usize];
         let mut dest = current;
         loop {
+            assert_ne!(dest, 0);
             if dest == 1 {
-                dest = 9;
+                dest = max;
             } else {
                 dest -= 1;
             }
-            if let Some((d, _)) = cups.iter().enumerate().find(|(i, c)| **c == dest) {
-                let mid = cups.len() - 1;
-                if mid > d {
-                    cups.rotate_right(mid - d);
-                }
-                cups.append(&mut pickup);
+            if dest != pickup1 && dest != pickup2 && dest != pickup3 {
                 break;
             }
         }
-        let (i, _) = cups
-            .iter()
-            .enumerate()
-            .find(|(i, c)| **c == current)
-            .unwrap();
-        current = cups[(i + 1) % cups.len()];
-        let n = cups.len() - 1 - cups.iter().enumerate().find(|(_, c)| **c == max).unwrap().0;
-        cups.rotate_right(n);
+        succ[pickup3 as usize] = succ[dest as usize];
+        succ[dest as usize] = pickup1;
+        succ[current as usize] = next;
+        current = next;
     }
-
-    let n = cups.iter().enumerate().find(|(i, c)| **c == 1).unwrap().0;
-    cups.rotate_left(n);
-    cups.remove(0);
     if gold {
-        0
+        let a = succ[1] as usize;
+        let b = succ[a] as usize;
+        a * b
     } else {
-        cups.iter().fold(0, |n, c| n * 10 + *c as usize)
+        let (mut s, mut d) = (0, succ[1]);
+        while d != 1 {
+            s = s * 10 + d as usize;
+            d = succ[d as usize];
+        }
+        s
     }
 }
 

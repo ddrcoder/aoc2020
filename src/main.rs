@@ -1298,12 +1298,82 @@ fn day23(gold: bool) -> usize {
     }
 }
 
+fn day24(gold: bool) -> usize {
+    let lines = lines("day24.txt");
+    let mut flipped = HashSet::new();
+    for line in lines {
+        let mut pos = (0, 0);
+        let mut chars = line.chars();
+        while let Some(ch) = chars.next() {
+            match ch {
+                'n' => {
+                    pos = match chars.next().unwrap() {
+                        'e' => (pos.0, pos.1 + 1),
+                        'w' => (pos.0 - 1, pos.1 + 1),
+                        _ => panic!(),
+                    }
+                }
+                's' => {
+                    pos = match chars.next().unwrap() {
+                        'e' => (pos.0 + 1, pos.1 - 1),
+                        'w' => (pos.0, pos.1 - 1),
+                        _ => panic!(),
+                    }
+                }
+                'e' => {
+                    pos.0 += 1;
+                }
+                'w' => {
+                    pos.0 -= 1;
+                }
+                _ => panic!("Unknown {}", ch),
+            }
+        }
+        if flipped.contains(&pos) {
+            flipped.remove(&pos);
+        } else {
+            flipped.insert(pos);
+        }
+    }
+
+    let mut floor = flipped;
+    for t in 0..100 {
+        let mut neighbors: HashMap<(i32, i32), usize> = HashMap::new();
+        for (x, y) in floor.iter().cloned() {
+            for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (-1, 1), (1, -1), (0, -1)]
+                .iter()
+                .cloned()
+            {
+                let (u, v) = (x + dx, y + dy);
+                *neighbors.entry((u, v)).or_insert(0) += 1;
+            }
+        }
+        floor = neighbors
+            .iter()
+            .filter_map(|(p, n)| {
+                if match n {
+                    0 | 3 | 4 | 5 | 6 if floor.contains(p) => false,
+                    2 if !floor.contains(p) => true,
+                    _ => floor.contains(p),
+                } {
+                    Some(*p)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        println!("{}: {}", t, floor.len());
+    }
+
+    floor.len()
+}
+
 fn main() {
     let solutions = [
         //day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, // day11, day12, day13, day14, //day15, day16,
         //day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, // day11, day12, day13, day14, //day15, day16,
         // da17, day18,day19
-        day23,
+        day24,
     ];
     for (i, solution) in solutions.iter().enumerate() {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));

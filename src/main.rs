@@ -893,81 +893,106 @@ fn day17(gold: bool) -> usize {
     }
     return vol.len();
 }
-fn day18(gold: bool) -> usize {
-    let lines = lines("day18.txt");
-    let mut sum = 0;
-    fn eval(op: char, v1: i64, v2: i64) -> i64 {
-        match op {
-            '*' => v1 * v2,
-            '+' => v1 + v2,
+
+#[derive(Default, Debug)]
+struct ExprState {
+    ops: Vec<char>,
+    values: Vec<usize>,
+    gold: bool,
+}
+
+impl ExprState {
+    fn new(gold: bool) -> ExprState {
+        ExprState {
+            gold,
+            ..Default::default()
+        }
+    }
+    fn ret(&mut self) -> Option<usize> {
+        while !self.ops.is_empty() {
+            self.resolve_one();
+        }
+        self.values.pop()
+    }
+
+    fn resolve_one(&mut self) {
+        assert!(self.values.len() >= 2);
+        let a = self.values.pop().unwrap();
+        let b = self.values.pop().unwrap();
+        self.values.push(match self.ops.pop().unwrap() {
+            '*' => a * b,
+            '+' => a + b,
+            op => panic!("{}", op),
+        });
+    }
+
+    fn prec(&self, ch: char) -> u8 {
+        match ch {
+            '*' => 2,
+            '+' => {
+                if self.gold {
+                    3
+                } else {
+                    2
+                }
+            }
+            '(' => 0,
             _ => panic!(),
         }
     }
 
-    let prec = |ch| match ch {
-        '*' => 3,
-        '+' => 2,
-        '(' | ')' => 1,
-        '!' => 0,
-        _ => panic!("{}", ch),
-    };
-    for line in [
-        "2 * 3 + (4 * 5)",
-        "1 + (2 * 3) + (4 * (5 + 6))",
-        "5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))",
-        "5 + (8 * 3 + 9 + 3 * 4 * 3)",
-        "((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2",
-        "9 * 8 + 2 + (4 * (2 * 2 + 9 * 2) * 9 * 3 * 8) + 8 * 5",
-    ]
-    .iter()
-    {
-        let mut ops = vec![];
-        let mut values = vec![];
-        //{}
-        //for line in lines.iter() {
-        for ch in line.chars().chain(once('!')) {
-            println!("{} {} {:?} {:?}", line, ch, values, ops);
-            match ch {
-                '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                    values.push(ch as i64 - '0' as i64);
-                }
-                '*' | '+' | '(' | ')' | '!' => {
-                    while let Some(op) = ops.last() {
-                        println!("{} {} {:?} {:?}", line, ch, values, ops);
-                        if prec(*op) < prec(ch) {
-                            break;
-                        }
-                        match *op {
-                            '*' => {
-                                let a = values.pop().unwrap();
-                                let b = values.pop().unwrap();
-                                values.push(a * b);
-                            }
-                            '+' => {
-                                let a = values.pop().unwrap();
-                                let b = values.pop().unwrap();
-                                values.push(a + b);
-                            }
-                            '!' => {}
-                            '(' | ')' => {}
-                            _ => panic!("{}", *op),
-                        }
-                        ops.pop();
+    fn append(&mut self, ch: char) {
+        match ch {
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                self.values.push(ch as usize - '0' as usize);
+            }
+            '(' => {
+                self.ops.push('(');
+            }
+            ')' => {
+                while !self.ops.is_empty() && *self.ops.last().unwrap() != '(' {
+                    if cfg!(debug) {
+                        println!(")-resolve {:?}", self);
                     }
-                    ops.push(ch);
+                    self.resolve_one();
                 }
-                ' ' => {}
-                _ => panic!("{}??", ch),
+                assert_eq!(self.ops.pop(), Some('('));
+            }
+            '*' | '+' => {
+                let current_prec = self.prec(ch);
+                while !self.ops.is_empty() && current_prec <= self.prec(*self.ops.last().unwrap()) {
+                    if cfg!(debug) {
+                        println!("prec-resolve {} {:?}", ch, self);
+                    }
+                    self.resolve_one();
+                }
+                self.ops.push(ch);
+            }
+            _ => panic!("{}??", ch),
+        }
+    }
+    fn eval(gold: bool, line: &str) -> usize {
+        let mut state = ExprState::new(gold);
+        for (i, ch) in line.chars().enumerate() {
+            if ch == ' ' {
+                continue;
+            }
+            state.append(ch);
+            if cfg!(debug) {
+                println!("{3:?}\n{0}\n{2:>1$}\n", line, i + 1, '^', state);
             }
         }
-        assert_eq!(values.len(), 1, "'{}' v{:?} o{:?}", line, values, ops);
-        assert_eq!(ops.len(), 0, "'{}' v{:?} o{:?}", line, values, ops);
-        println!("{} = {}", line, values.last().unwrap());
-        sum += values.pop().unwrap();
+        state.ret().unwrap()
     }
-
-    return sum as usize;
 }
+
+fn day18(gold: bool) -> usize {
+    lines("day18.txt")
+        .iter()
+        .map(|line| ExprState::eval(gold, line))
+        .sum()
+}
+
 //#[derive(Parser)]
 //#[grammar = "../day19a.pest"]
 //struct Day19AParser;
@@ -1422,8 +1447,7 @@ fn main() {
         day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11, day12, day13, day14,
         day15, day16, day17, day18, day19, day20, day21, day22, day23, day24, day25,
     ];
-    println!("what");
-    for (i, solution) in solutions.iter().enumerate().skip(24) {
+    for (i, solution) in solutions.iter().enumerate().skip(18).take(1) {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));
     }
 }

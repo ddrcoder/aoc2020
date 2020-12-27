@@ -8,6 +8,7 @@ use pest::Parser;
 use std::fmt::Debug;
 use std::hash::Hash;
 
+use regex::Regex;
 use std::collections::hash_map::HashMap;
 use std::collections::hash_set::HashSet;
 use std::fs::File;
@@ -993,30 +994,95 @@ fn day18(gold: bool) -> usize {
         .sum()
 }
 
-//#[derive(Parser)]
-//#[grammar = "../day19a.pest"]
-//struct Day19AParser;
-
-#[derive(Parser)]
-#[grammar = "../day19b.pest"]
-struct Day19BParser;
-
+#[derive(Debug)]
+enum Expansion {
+    Char(char),
+    Rules(Vec<Vec<u8>>),
+}
 fn day19(gold: bool) -> usize {
-    let lines = lines("day19.input");
-    lines
-        .iter()
-        .filter_map(|line| {
-            if gold {
-                Day19BParser::parse(Rule::r0, line)
-                    .ok()
-                    .map(|ps| (line, ps.as_str()))
-            } else {
-                Day19BParser::parse(Rule::r0, line)
-                    .ok()
-                    .map(|ps| (line, ps.as_str()))
-            }
+    let lines = content("day19.txt");
+    let mut parts = lines.split("\n\n");
+    let rules = parts.next().unwrap();
+    let input = parts.next().unwrap();
+    let rules: HashMap<u8, Expansion> = rules
+        .split('\n')
+        .map(|rule| {
+            let mut parts = rule.split(": ");
+            let name = parts.next().unwrap();
+            let id: u8 = name.parse().ok().unwrap();
+            let expansions = parts.next().unwrap();
+            (
+                id,
+                if expansions.starts_with('"') {
+                    Expansion::Char(expansions.chars().skip(1).next().unwrap())
+                } else {
+                    Expansion::Rules(
+                        expansions
+                            .split(" | ")
+                            .map(|option| {
+                                option.split(' ').map(|s| s.parse().ok().unwrap()).collect()
+                            })
+                            .collect(),
+                    )
+                },
+            )
         })
-        .filter(|(line, rep)| line == rep)
+        .collect();
+    fn build_regex(
+        mut str: String,
+        rule: u8,
+        gold: bool,
+        rules: &HashMap<u8, Expansion>,
+    ) -> String {
+        match rule {
+            8 if gold => {
+                let mut str = build_regex(str, 42, gold, rules);
+                str.push('+');
+                str
+            }
+            11 if gold => {
+                let mut r42 = build_regex(String::new(), 42, gold, rules);
+                let mut r31 = build_regex(String::new(), 31, gold, rules);
+                let mut nested = format!("{}{}", r42, r31);
+                for rep in 0..7 {
+                    nested = format!("{}({})?{}", r42, nested, r31);
+                }
+                str.push_str(&nested);
+                str
+            }
+            id => match rules.get(&id).unwrap() {
+                Expansion::Char(ch) => {
+                    str.push(*ch);
+                    str
+                }
+                Expansion::Rules(options) => {
+                    str.push('(');
+                    let mut first = true;
+                    for exp in options {
+                        if !first {
+                            str.push('|');
+                        } else {
+                            first = false;
+                        }
+                        for id in exp {
+                            str = build_regex(str, *id, gold, rules);
+                        }
+                    }
+                    str.push(')');
+                    str
+                }
+            },
+        }
+    };
+    let mut r0 = build_regex("^".to_string(), 0, gold, &rules);
+    r0.push('$');
+    if cfg!(debug) {
+        println!("{}", &r0);
+    }
+    let regex = Regex::new(&r0).ok().unwrap();
+    input
+        .split('\n')
+        .filter(|line| regex.is_match(line))
         .count()
 }
 

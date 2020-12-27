@@ -1,26 +1,16 @@
 #[macro_use]
 extern crate scan_fmt;
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
 
-use pest::Parser;
 use std::fmt::Debug;
 use std::hash::Hash;
 
 use regex::Regex;
-use std::collections::hash_map::HashMap;
-use std::collections::hash_set::HashSet;
+use std::collections::{hash_map::HashMap, hash_set::HashSet};
 use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::io::Read;
-use std::iter::once;
-use std::iter::Iterator;
+use std::io::{self, BufRead, BufReader, Read, Write};
+use std::iter::{once, Iterator};
 
 fn lines(filename: &str) -> Vec<String> {
-    let x = 3;
-
     BufReader::new(File::open(filename).ok().unwrap())
         .lines()
         .map(|line| line.ok().unwrap())
@@ -1086,248 +1076,247 @@ fn day19(gold: bool) -> usize {
         .count()
 }
 
+#[derive(Clone, Hash, PartialEq, Eq)]
+struct Tile {
+    chars: Vec<Vec<char>>,
+}
+
+impl Tile {
+    fn new(chars: Vec<Vec<char>>) -> Tile {
+        Tile { chars }
+    }
+    fn instance(&self, r: u8) -> Tile {
+        let mut copy = self.clone();
+        for y in 0..10 {
+            for x in 0..10 {
+                let (j, i) = match r {
+                    0 => (x, y),
+                    1 => (x, 9 - y),
+                    2 => (9 - x, y),
+                    3 => (9 - x, 9 - y),
+                    4 => (y, x),
+                    5 => (9 - y, x),
+                    6 => (y, 9 - x),
+                    7 => (9 - y, 9 - x),
+                    _ => panic!(),
+                };
+                copy.chars[y][x] = self.chars[i][j];
+            }
+        }
+        copy
+    }
+    fn left_sig(&self) -> String {
+        self.chars.iter().map(|row| row.first().unwrap()).collect()
+    }
+    fn right_sig(&self) -> String {
+        self.chars.iter().map(|row| row.last().unwrap()).collect()
+    }
+    fn top_sig(&self) -> String {
+        self.chars.first().unwrap().iter().cloned().collect()
+    }
+    fn bottom_sig(&self) -> String {
+        self.chars.last().unwrap().iter().cloned().collect()
+    }
+}
+
 fn day20(gold: bool) -> usize {
     let input = content("day20.txt");
-    let mut tiles: HashMap<_, Vec<Vec<char>>> = HashMap::new();
+    let mut tiles: HashMap<_, Tile> = HashMap::new();
     for block in input.split("\n\n") {
         let mut lines = block.split("\n");
         let id = scan_fmt!(lines.next().unwrap(), "Tile {}:", usize)
             .ok()
             .unwrap();
         let chars = lines.map(|str| str.chars().collect()).take(10).collect();
-        for rot in 0..4 {
-            for flip in [false, true].iter() {
-                tiles.insert((id, *flip, rot), instance_tile(&chars, *flip, rot));
-            }
+        let tile = Tile::new(chars);
+        for r in 0..8 {
+            tiles.insert((id, r), tile.instance(r));
         }
     }
-    let mut sigs = HashMap::new();
-
-    fn edge_sig(tile: &Vec<Vec<char>>, side: u8) -> String {
-        /*
-             ->0
-           3    |
-           ^    v
-           |    1
-            2<-
-            opposite = (edge + 2) % 4
-            flip = transpose = counterclockwise from tl corner
-        */
-        assert_eq!(tile.len(), 10, "{:?}", tile);
-        assert_eq!(tile[9].len(), 10, "{:?}", tile);
-        match side {
-            0 => tile[0].iter().cloned().collect(),
-            1 => tile.iter().map(|r| r[9]).collect(),
-            2 => tile[9].iter().cloned().collect(),
-            3 => tile.iter().map(|r| r[0]).collect(),
-            _ => panic!(),
+    let mut index = HashMap::new();
+    for (key, tile) in tiles.iter() {
+        let left = tile.left_sig();
+        let top = tile.top_sig();
+        for sig in [
+            (None, None),
+            (None, Some(top.clone())),
+            (Some(left.clone()), None),
+            (Some(left.clone()), Some(top.clone())),
+        ]
+        .iter()
+        {
+            let v = index.entry(sig.clone()).or_insert(vec![]);
+            assert!(!v.contains(key));
+            v.push(key.clone());
         }
-    };
-
-    for ((id, flip, rot), tile) in tiles.iter() {
-        for side in 0..4 {
-            sigs.entry((side, edge_sig(tile, side)))
-                .or_insert(vec![])
-                .push((*id, *flip, *rot));
+    }
+    fn render(
+        path: &[(usize, u8)],
+        tiles: &HashMap<(usize, u8), Tile>,
+        skip: bool,
+    ) -> (Vec<Vec<char>>, String) {
+        let mut image = vec![];
+        let mut image_str = String::new();
+        let range = if skip { 1..9 } else { 0..10 };
+        for gy in 0..DIM {
+            if gy * DIM >= path.len() {
+                break;
+            }
+            for y in range.clone() {
+                let mut line = vec![];
+                for gx in 0..DIM {
+                    let index = gy * DIM + gx;
+                    if index >= path.len() {
+                        break;
+                    }
+                    let (id, r) = path[gy * DIM + gx];
+                    let tile = tiles.get(&(id, r)).unwrap();
+                    for x in range.clone() {
+                        //line.push(tile.chars[y][x] != '#');
+                        line.push(tile.chars[y][x]);
+                        image_str.push(tile.chars[y][x]);
+                    }
+                }
+                image.push(line);
+                image_str.push('\n');
+            }
+        }
+        (image, image_str)
+    }
+    const DIM: usize = 12;
+    //assert_eq!(tiles.len(), DIM * DIM * 8);
+    fn find_tiles(
+        tiles: &HashMap<(usize, u8), Tile>,
+        used: &mut HashSet<usize>,
+        path: &mut Vec<(usize, u8)>,
+        choices: &mut Vec<Vec<(usize, u8)>>,
+        index: &HashMap<(Option<String>, Option<String>), Vec<(usize, u8)>>,
+    ) {
+        if path.len() == DIM * DIM {
+            choices.push(path.clone());
+            if cfg!(debug) {
+                println!("Solved!\n{}", render(path, tiles, false).1);
+            }
+            return;
+        }
+        let sig_left = if path.len() % DIM != 0 {
+            Some(tiles.get(&path[path.len() - 1]).unwrap().right_sig())
+        } else {
+            None
+        };
+        let sig_top = if path.len() >= DIM {
+            Some(tiles.get(&path[path.len() - DIM]).unwrap().bottom_sig())
+        } else {
+            None
+        };
+        let key = (sig_left.clone(), sig_top.clone());
+        if let Some(matches) = index.get(&key) {
+            for choice in matches {
+                if !used.insert(choice.0) {
+                    continue;
+                }
+                path.push(choice.clone());
+                find_tiles(tiles, used, path, choices, index);
+                used.remove(&choice.0);
+                path.pop();
+            }
         }
     }
     let mut choices = vec![];
-    fn print_tile(id: usize, tile: &Vec<Vec<char>>, flip: bool, rot: u8) {
-        println!("\n#{}, F{}  R{}", id, flip as u8, rot);
-        for y in 0..10 {
-            for x in 0..10 {
-                //print!("{}", tile[y][x]);
+    find_tiles(
+        &tiles,
+        &mut HashSet::new(),
+        &mut vec![],
+        &mut choices,
+        &index,
+    );
+    let monster_pattern: Vec<Vec<usize>> = [
+        "                  # ",
+        "#    ##    ##    ###",
+        " #  #  #  #  #  #   ",
+    ]
+    .iter()
+    .map(|line_pattern| {
+        line_pattern
+            .chars()
+            .enumerate()
+            .filter_map(|(j, ch)| if ch == '#' { Some(j) } else { None })
+            .collect()
+    })
+    .collect();
+    assert_eq!(monster_pattern[0][0], 18);
+    assert_eq!(monster_pattern[1][1], 5);
+    for path in choices {
+        let checksum =
+            path[0].0 * path[DIM - 1].0 * path[DIM * DIM - DIM].0 * path[DIM * DIM - 1].0;
+        if !gold {
+            return checksum;
+        }
+        let (image, image_str) = render(&path[..], &tiles, true);
+        fn monster_at(
+            image: &Vec<Vec<char>>,
+            i: usize,
+            j: usize,
+            pattern: &Vec<Vec<usize>>,
+        ) -> bool {
+            if i + pattern.len() > image.len() {
+                return false;
+            }
+            let mut s = 0;
+            for di in 0..pattern.len() {
+                let pline = &pattern[di];
+                for dj in pline {
+                    if j + dj >= image[i + di].len() {
+                        return false;
+                    }
+                    if image[i + di][j + dj] != '#' {
+                        return false;
+                    }
+                    s += 1;
+                }
+            }
+            return true;
+        }
+        fn mark_monster(image: &mut Vec<Vec<char>>, i: usize, j: usize, pattern: &Vec<Vec<usize>>) {
+            for di in 0..pattern.len() {
+                for dj in pattern[di].iter() {
+                    image[i + di][j + dj] = 'O';
+                }
+            }
+        }
+        let d = 8 * DIM;
+        let mut monster_locations = vec![];
+        let mut hashes = 0;
+        assert_eq!(d, image[0].len());
+        for i in 0..d {
+            for j in 0..d {
+                if image[i][j] == '#' {
+                    hashes += 1;
+                }
+                if monster_at(&image, i, j, &monster_pattern) {
+                    monster_locations.push((i, j));
+                }
+            }
+        }
+        if monster_locations.is_empty() {
+            continue;
+        }
+        let mut marked = image;
+        for (i, j) in monster_locations.iter().cloned() {
+            mark_monster(&mut marked, i, j, &monster_pattern);
+        }
+        let mut roughness = 0;
+        for line in marked {
+            for c in line {
+                if c == '#' {
+                    roughness += 1;
+                }
+                print!("{}", c);
             }
             println!();
         }
-    }
-    fn instance_tile(tile: &Vec<Vec<char>>, flip: bool, rot: u8) -> Vec<Vec<char>> {
-        let mut copy = tile.clone();
-        for y in 0..10 {
-            for x in 0..10 {
-                let (j, i) = match rot {
-                    0 if flip => (x, y),
-                    1 if flip => (x, 9 - y),
-                    2 if flip => (9 - x, y),
-                    3 if flip => (9 - x, 9 - y),
-                    0 => (y, x),
-                    1 => (9 - y, x),
-                    2 => (y, 9 - x),
-                    3 => (9 - y, 9 - x),
-                    _ => panic!(),
-                };
-                copy[y][x] = tile[i][j];
-            }
-        }
-        copy
-    }
-    fn find_tiles(
-        tiles: &HashMap<(usize, bool, u8), Vec<Vec<char>>>,
-        choices: &mut Vec<(usize, bool, u8)>,
-        sigs: &HashMap<(u8, String), Vec<(usize, bool, u8)>>,
-        dim: usize,
-    ) -> bool {
-        if choices.len() == dim * dim {
-            println!(
-                "Checksum {} below:",
-                choices[0].0
-                    * choices[dim - 1].0
-                    * choices[dim * dim - dim].0
-                    * choices[dim * dim - 1].0
-            );
-            let mut image = vec![];
-            for gy in 0..dim {
-                for gx in 0..dim {
-                    let (id, _, _) = choices[gy * dim + gx];
-                    //print!("Tile {:4}  ", id);
-                }
-                //println!("");
-                for y in 0..10 {
-                    let mut line = vec![];
-                    if y == 0 && gy != 0 {
-                        continue;
-                    }
-                    for gx in 0..dim {
-                        let (id, flip, rot) = choices[gy * dim + gx];
-                        let tile = tiles.get(&(id, flip, rot)).unwrap();
-                        for x in 0..10 {
-                            if x == 0 && gx != 0 {
-                                continue;
-                            }
-                            print!("{}", tile[y][x]);
-                            line.push(tile[y][x] == '#');
-                        }
-                    }
-                    println!("");
-                    image.push(line);
-                }
-            }
-            println!("");
-            let monster_pattern: Vec<Vec<usize>> = [
-                "                  # ",
-                "#    ##    ##    ###",
-                " #  #  #  #  #  #   ",
-            ]
-            .iter()
-            .cloned()
-            .map(|line_pattern| {
-                line_pattern
-                    .chars()
-                    .enumerate()
-                    .filter_map(|(j, ch)| if ch == '#' { Some(j) } else { None })
-                    .collect()
-            })
-            .collect();
-            fn monster_at(
-                image: &Vec<Vec<bool>>,
-                i: usize,
-                j: usize,
-                pattern: &Vec<Vec<usize>>,
-            ) -> bool {
-                let mut s = 0;
-                for di in 0..pattern.len() {
-                    if i + di >= image.len() {
-                        return false;
-                    }
-                    let pline = &pattern[di];
-                    for dj in pline {
-                        if j + dj >= image[i + di].len() {
-                            return false;
-                        }
-                        if !image[i + di][j + dj] {
-                            if s > 8 {
-                                println!(
-                                    "failed to find monster at ({},{}) after matching {}",
-                                    i, j, s
-                                );
-                            }
-                            return false;
-                        }
-                        s += 1;
-                    }
-                }
-                println!("Found monster at ({},{}) w {}!", i, j, s);
-                return true;
-            }
-            let w = 1 + 9 * dim;
-            let mut monster_locations = vec![];
-            let mut hashes = 0;
-            for i in 0..w {
-                for j in 0..w {
-                    if image[i][j] {
-                        hashes += 1;
-                    }
-                    if monster_at(&image, i, j, &monster_pattern) {
-                        monster_locations.push((i, j));
-                    }
-                }
-            }
-            println!("Monsters: {} / {}", monster_locations.len(), hashes);
-            return false;
-        }
-        let sig_above = if choices.len() >= dim {
-            let (id, flip, rot) = choices[choices.len() - dim];
-            // 0->1 1->0 2->3 3->2
-            Some(edge_sig(tiles.get(&(id, flip, rot)).unwrap(), 2))
-        } else {
-            None
-        };
-        let sig_left = if choices.len() % dim != 0 {
-            let (id, flip, rot) = choices[choices.len() - 1];
-            // 0->1 1->0 2->3 3->2
-            Some(edge_sig(tiles.get(&(id, flip, rot)).unwrap(), 1))
-        } else {
-            None
-        };
-        let used = |id| choices.iter().any(|used| used.0 == id);
-        let get_options = |sig: &str, side: u8| {
-            sigs.get(&(side, sig.to_string()))
-                .iter()
-                .flat_map(|options| options.iter().cloned())
-                .filter(|(id, _, _)| !used(*id))
-                .collect::<Vec<_>>()
-        };
-        if let Some(sig_above) = &sig_above {
-            for choice in get_options(sig_above, 0) {
-                let (id, flip, rot) = &choice;
-                if let Some(sig_left) = &sig_left {
-                    if &edge_sig(tiles.get(&(*id, *flip, *rot)).unwrap(), 3) != sig_left {
-                        continue;
-                    }
-                }
-                choices.push(choice);
-                if find_tiles(tiles, choices, sigs, dim) {
-                    return true;
-                }
-                choices.pop();
-            }
-        } else if let Some(sig_left) = &sig_left {
-            for choice in get_options(sig_left, 3) {
-                choices.push(choice);
-                if find_tiles(tiles, choices, sigs, dim) {
-                    return true;
-                }
-                choices.pop();
-            }
-        }
-        false
-    }
-    let dim = 12;
-    for ((side, sig), matches) in &sigs {
-        if matches.len() < 2 || *side != 1 {
-            continue;
-        }
-        for (id, flip, rot) in matches {
-            choices.push((*id, *flip, *rot));
-            if find_tiles(&tiles, &mut choices, &sigs, dim) {
-                assert_eq!(choices.len(), dim * dim);
-                return choices[0].0
-                    * choices[dim].0
-                    * choices[dim * dim - dim].0
-                    * choices[dim * dim - 1].0;
-            }
-            choices.pop();
-        }
+        println!("contains {} monsters.", monster_locations.len());
+        return roughness;
     }
     0
 }
@@ -1513,7 +1502,7 @@ fn main() {
         day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11, day12, day13, day14,
         day15, day16, day17, day18, day19, day20, day21, day22, day23, day24, day25,
     ];
-    for (i, solution) in solutions.iter().enumerate().skip(18).take(1) {
-        println!("{}: {}, {}", i + 1, solution(false), solution(true));
+    for (i, solution) in solutions.iter().enumerate().skip(19).take(1) {
+        print!("{}: {}, {}", i + 1, solution(false), solution(true));
     }
 }

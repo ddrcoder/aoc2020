@@ -1395,12 +1395,35 @@ fn day24(gold: bool) -> usize {
     floor.len()
 }
 
+fn day25(gold: bool) -> usize {
+    if gold {
+        return 0;
+    }
+    let (card_key, door_key) = scan_fmt!(&content("day25.txt"), "{}\n{}", usize, usize)
+        .ok()
+        .unwrap();
+    //let (card_key, door_key) = (5764801, 17807724);
+    let seq = |subject| {
+        (1..)
+            .scan(1, move |s, _| {
+                *s = *s * subject % 20201227;
+                Some(*s)
+            })
+            .enumerate()
+    };
+    let loop_size = |target| seq(7).find_map(|(s, v)| if v == target { Some(s) } else { None });
+    let (card_loop, door_loop) = (loop_size(card_key), loop_size(door_key));
+    dbg!((card_loop, door_loop));
+    seq(door_key).skip(card_loop.unwrap()).next().unwrap().1
+}
+
 fn main() {
     let solutions = [
         day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11, day12, day13, day14,
-        day15, day16, day17, day18, day19, day20, day21, day22, day23, day24,
+        day15, day16, day17, day18, day19, day20, day21, day22, day23, day24, day25,
     ];
-    for (i, solution) in solutions.iter().enumerate().skip(19) {
+    println!("what");
+    for (i, solution) in solutions.iter().enumerate().skip(24) {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));
     }
 }

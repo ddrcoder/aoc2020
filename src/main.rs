@@ -7,7 +7,7 @@ use std::hash::Hash;
 use regex::Regex;
 use std::collections::{hash_map::HashMap, hash_set::HashSet};
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Read};
 use std::iter::{once, Iterator};
 
 fn lines(filename: &str) -> Vec<String> {
@@ -1031,10 +1031,10 @@ fn day19(gold: bool) -> usize {
                 str
             }
             11 if gold => {
-                let mut r42 = build_regex(String::new(), 42, gold, rules);
-                let mut r31 = build_regex(String::new(), 31, gold, rules);
+                let r42 = build_regex(String::new(), 42, gold, rules);
+                let r31 = build_regex(String::new(), 31, gold, rules);
                 let mut nested = format!("{}{}", r42, r31);
-                for rep in 0..7 {
+                for _ in 0..7 {
                     nested = format!("{}({})?{}", r42, nested, r31);
                 }
                 str.push_str(&nested);
@@ -1150,19 +1150,13 @@ fn day20(gold: bool) -> usize {
             v.push(key.clone());
         }
     }
-    fn render(
-        path: &[(usize, u8)],
-        tiles: &HashMap<(usize, u8), Tile>,
-        skip: bool,
-    ) -> (Vec<Vec<char>>, String) {
+    fn render(path: &[(usize, u8)], tiles: &HashMap<(usize, u8), Tile>) -> Vec<Vec<char>> {
         let mut image = vec![];
-        let mut image_str = String::new();
-        let range = if skip { 1..9 } else { 0..10 };
         for gy in 0..DIM {
             if gy * DIM >= path.len() {
                 break;
             }
-            for y in range.clone() {
+            for y in 1..9 {
                 let mut line = vec![];
                 for gx in 0..DIM {
                     let index = gy * DIM + gx;
@@ -1171,17 +1165,14 @@ fn day20(gold: bool) -> usize {
                     }
                     let (id, r) = path[gy * DIM + gx];
                     let tile = tiles.get(&(id, r)).unwrap();
-                    for x in range.clone() {
-                        //line.push(tile.chars[y][x] != '#');
+                    for x in 1..9 {
                         line.push(tile.chars[y][x]);
-                        image_str.push(tile.chars[y][x]);
                     }
                 }
                 image.push(line);
-                image_str.push('\n');
             }
         }
-        (image, image_str)
+        image
     }
     const DIM: usize = 12;
     //assert_eq!(tiles.len(), DIM * DIM * 8);
@@ -1194,9 +1185,6 @@ fn day20(gold: bool) -> usize {
     ) {
         if path.len() == DIM * DIM {
             choices.push(path.clone());
-            if cfg!(debug) {
-                println!("Solved!\n{}", render(path, tiles, false).1);
-            }
             return;
         }
         let sig_left = if path.len() % DIM != 0 {
@@ -1252,7 +1240,6 @@ fn day20(gold: bool) -> usize {
         if !gold {
             return checksum;
         }
-        let (image, image_str) = render(&path[..], &tiles, true);
         fn monster_at(
             image: &Vec<Vec<char>>,
             i: usize,
@@ -1262,7 +1249,6 @@ fn day20(gold: bool) -> usize {
             if i + pattern.len() > image.len() {
                 return false;
             }
-            let mut s = 0;
             for di in 0..pattern.len() {
                 let pline = &pattern[di];
                 for dj in pline {
@@ -1272,7 +1258,6 @@ fn day20(gold: bool) -> usize {
                     if image[i + di][j + dj] != '#' {
                         return false;
                     }
-                    s += 1;
                 }
             }
             return true;
@@ -1285,14 +1270,11 @@ fn day20(gold: bool) -> usize {
             }
         }
         let d = 8 * DIM;
-        let mut monster_locations = vec![];
-        let mut hashes = 0;
+        let image = render(&path[..], &tiles);
         assert_eq!(d, image[0].len());
+        let mut monster_locations = vec![];
         for i in 0..d {
             for j in 0..d {
-                if image[i][j] == '#' {
-                    hashes += 1;
-                }
                 if monster_at(&image, i, j, &monster_pattern) {
                     monster_locations.push((i, j));
                 }
@@ -1378,7 +1360,7 @@ fn day21(gold: bool) -> usize {
         }
     }
     let mut ilist: Vec<_> = i2a.iter().collect();
-    ilist[..].sort_by_key(|(k, v)| *v);
+    ilist[..].sort_by_key(|(_, v)| *v);
     println!(
         "{}",
         ilist.iter().fold("".to_string(), |mut s, (i, _)| {

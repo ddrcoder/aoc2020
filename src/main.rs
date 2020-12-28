@@ -1384,7 +1384,49 @@ fn day22(gold: bool) -> usize {
 }
 
 fn day23(gold: bool) -> usize {
-    0
+    let (turns, max) = if gold { (10000000, 1000000) } else { (100, 9) };
+    let mut succ: Vec<u32> = vec![0; max as usize + 1];
+    let s = "253149867";
+    let cups = s.chars().map(|ch| ch as u32 - '0' as u32).chain(10..=max);
+    let mut current = cups.clone().next().unwrap();
+    for (from, to) in cups.clone().zip(cups.clone().skip(1)) {
+        succ[from as usize] = to;
+    }
+    succ[cups.clone().rev().next().unwrap() as usize] = current;
+    for turn in 1..=turns {
+        let pickup1 = succ[current as usize];
+        let pickup2 = succ[pickup1 as usize];
+        let pickup3 = succ[pickup2 as usize];
+        let next = succ[pickup3 as usize];
+        let mut dest = current;
+        loop {
+            assert_ne!(dest, 0);
+            if dest == 1 {
+                dest = max;
+            } else {
+                dest -= 1;
+            }
+            if dest != pickup1 && dest != pickup2 && dest != pickup3 {
+                break;
+            }
+        }
+        succ[pickup3 as usize] = succ[dest as usize];
+        succ[dest as usize] = pickup1;
+        succ[current as usize] = next;
+        current = next;
+    }
+    if gold {
+        let a = succ[1] as usize;
+        let b = succ[a] as usize;
+        a * b
+    } else {
+        let (mut s, mut d) = (0, succ[1]);
+        while d != 1 {
+            s = s * 10 + d as usize;
+            d = succ[d as usize];
+        }
+        s
+    }
 }
 
 fn day24(gold: bool) -> usize {
@@ -1484,7 +1526,7 @@ fn main() {
         day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11, day12, day13, day14,
         day15, day16, day17, day18, day19, day20, day21, day22, day23, day24, day25,
     ];
-    for (i, solution) in solutions.iter().enumerate().skip(19).take(1) {
-        print!("{}: {}, {}", i + 1, solution(false), solution(true));
+    for (i, solution) in solutions.iter().enumerate().skip(19) {
+        println!("{}: {}, {}", i + 1, solution(false), solution(true));
     }
 }

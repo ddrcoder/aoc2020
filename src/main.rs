@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate scan_fmt;
 
-use std::fmt::Debug;
 use std::hash::Hash;
+use std::{collections::VecDeque, fmt::Debug};
 
 use regex::Regex;
 use std::collections::{hash_map::HashMap, hash_set::HashSet};
@@ -1380,7 +1380,43 @@ fn day21(gold: bool) -> usize {
 }
 
 fn day22(gold: bool) -> usize {
-    0
+    let input = content("day22.txt");
+    if gold {
+        return 0;
+    }
+    let decks: Vec<VecDeque<u8>> = input
+        .split("\n\n")
+        .map(|lines| {
+            lines
+                .split('\n')
+                .skip(1)
+                .map(|n| n.parse().ok().unwrap())
+                .collect()
+        })
+        .collect();
+    let mut decks = decks.into_iter();
+    let mut d0 = decks.next().unwrap();
+    let mut d1 = decks.next().unwrap();
+    while !d0.is_empty() && !d1.is_empty() {
+        let (c0, c1) = (d0.pop_front().unwrap(), d1.pop_front().unwrap());
+        assert_ne!(c0, c1);
+        println!("{} vs {} ", c0, c1);
+        if c0 < c1 {
+            d1.push_back(c1);
+            d1.push_back(c0);
+        } else {
+            d0.push_back(c0);
+            d0.push_back(c1);
+        }
+        println!("1: {:?}\n2: {:?} ", &d0, &d1);
+    }
+    let winner = if d1.is_empty() { &d0 } else { &decks[1] };
+    winner
+        .iter()
+        .rev()
+        .enumerate()
+        .map(|(i, v)| (i + 1) * (*v as usize))
+        .sum()
 }
 
 fn day23(gold: bool) -> usize {

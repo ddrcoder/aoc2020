@@ -1381,9 +1381,6 @@ fn day21(gold: bool) -> usize {
 
 fn day22(gold: bool) -> usize {
     let input = content("day22.txt");
-    if gold {
-        return 0;
-    }
     let decks: Vec<VecDeque<u8>> = input
         .split("\n\n")
         .map(|lines| {
@@ -1397,20 +1394,110 @@ fn day22(gold: bool) -> usize {
     let mut decks = decks.into_iter();
     let mut d0 = decks.next().unwrap();
     let mut d1 = decks.next().unwrap();
-    while !d0.is_empty() && !d1.is_empty() {
-        let (c0, c1) = (d0.pop_front().unwrap(), d1.pop_front().unwrap());
-        assert_ne!(c0, c1);
-        println!("{} vs {} ", c0, c1);
-        if c0 < c1 {
-            d1.push_back(c1);
-            d1.push_back(c0);
-        } else {
-            d0.push_back(c0);
-            d0.push_back(c1);
+    let win0 = if !gold {
+        while !d0.is_empty() && !d1.is_empty() {
+            let (c0, c1) = (d0.pop_front().unwrap(), d1.pop_front().unwrap());
+            assert_ne!(c0, c1);
+            if cfg!(debug) {
+                println!("{} vs {} ", c0, c1);
+            }
+            let win0 = c0 > c1;
+            if win0 {
+                d0.push_back(c0);
+                d0.push_back(c1);
+            } else {
+                d1.push_back(c1);
+                d1.push_back(c0);
+            }
+            if cfg!(debug) {
+                println!("1: {:?}\n2: {:?} ", &d0, &d1);
+            }
         }
-        println!("1: {:?}\n2: {:?} ", &d0, &d1);
+        d1.is_empty()
+    } else {
+        fn play(d0: &mut VecDeque<u8>, d1: &mut VecDeque<u8>, depth: usize) -> bool {
+            let mut visited = HashSet::new();
+            loop {
+                if !visited.insert((d0.clone(), d1.clone())) {
+                    if cfg!(debug) {
+                        println!(
+                            "{indent:>depth$}Cycle! 1 wins.",
+                            indent = ' ',
+                            depth = depth * 3,
+                        );
+                    }
+                    return true;
+                } else if d1.is_empty() {
+                    if cfg!(debug) {
+                        println!(
+                            "{indent:>depth$}2 empty, 1 wins.",
+                            indent = ' ',
+                            depth = depth * 3,
+                        );
+                    }
+                    return true;
+                } else if d0.is_empty() {
+                    if cfg!(debug) {
+                        println!(
+                            "{indent:>depth$}1 empty, 2 wins.",
+                            indent = ' ',
+                            depth = depth * 3,
+                        );
+                    }
+                    return false;
+                }
+                let (c0, c1) = (d0.pop_front().unwrap(), d1.pop_front().unwrap());
+                if cfg!(debug) {
+                    println!(
+                        "{indent:>depth$}1: {} {:?}\n{indent:>depth$}2: {} {:?}",
+                        c0,
+                        &d0,
+                        c1,
+                        &d1,
+                        indent = 'B',
+                        depth = depth * 3
+                    );
+                }
+                let win0 = if d0.len() >= c0 as usize && d1.len() >= c1 as usize {
+                    let mut d0 = d0.iter().take(c0 as usize).cloned().collect();
+                    let mut d1 = d1.iter().take(c1 as usize).cloned().collect();
+                    if cfg!(debug) {
+                        println!(
+                            "{indent:>depth$}Recursing...",
+                            indent = ' ',
+                            depth = depth * 3,
+                        );
+                    }
+                    play(&mut d0, &mut d1, depth + 1)
+                } else {
+                    c0 > c1
+                };
+                if win0 {
+                    d0.push_back(c0);
+                    d0.push_back(c1);
+                } else {
+                    d1.push_back(c1);
+                    d1.push_back(c0);
+                }
+                if cfg!(debug) {
+                    println!(
+                        "{indent:>depth$}{}1: {:?}\n{indent:>depth$}{}2: {:?}\n",
+                        if win0 { '*' } else { ' ' },
+                        &d0,
+                        if win0 { ' ' } else { '*' },
+                        &d1,
+                        indent = 'A',
+                        depth = depth * 3,
+                    );
+                }
+            }
+        }
+        play(&mut d0, &mut d1, 0)
+    };
+    if cfg!(debug) {
+        println!("End!\n1: {:?}\n2:{:?}", d0, d1);
     }
-    let winner = if d1.is_empty() { &d0 } else { &decks[1] };
+    let winner = if win0 { d0 } else { d1 };
     winner
         .iter()
         .rev()

@@ -12,13 +12,6 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::iter::{once, Iterator};
 
-fn lines(filename: &str) -> Vec<String> {
-    BufReader::new(File::open(filename).ok().unwrap())
-        .lines()
-        .map(|line| line.ok().unwrap())
-        .collect()
-}
-
 fn content(filename: &str) -> String {
     let mut r = String::new();
     File::open(filename)
@@ -38,11 +31,8 @@ fn sum2(nums: &HashSet<i64>, target: i64) -> Option<(i64, i64)> {
     None
 }
 
-fn day1(gold: bool) -> usize {
-    let nums: HashSet<i64> = lines("day1.txt")
-        .iter()
-        .map(|str| str.parse().ok().unwrap())
-        .collect();
+fn day1(lines: &Vec<String>, gold: bool) -> usize {
+    let nums: HashSet<i64> = lines.iter().map(|str| str.parse().ok().unwrap()).collect();
 
     if !gold {
         if let Some((a, b)) = sum2(&nums, 2020) {
@@ -58,8 +48,8 @@ fn day1(gold: bool) -> usize {
     panic!();
 }
 
-fn day2(gold: bool) -> usize {
-    let passwords: Vec<(usize, usize, char, String)> = lines("day2.txt")
+fn day2(lines: &Vec<String>, gold: bool) -> usize {
+    let passwords: Vec<(usize, usize, char, String)> = lines
         .iter()
         .map(|line| {
             scan_fmt!(line, "{}-{} {}: {}", usize, usize, char, String)
@@ -90,8 +80,7 @@ fn day2(gold: bool) -> usize {
     }
 }
 
-fn day3(gold: bool) -> usize {
-    let lines = lines("day3.txt");
+fn day3(lines: &Vec<String>, gold: bool) -> usize {
     let terrain = lines.iter().enumerate();
     if !gold {
         terrain
@@ -170,7 +159,7 @@ fn line_groups<'a>(lines: &'a Vec<String>) -> impl Iterator<Item = &[String]> {
     lines.split(|s| s.is_empty())
 }
 
-fn day4(gold: bool) -> usize {
+fn day4(lines: &Vec<String>, gold: bool) -> usize {
     fn is_valid_passport(current: &HashMap<String, String>) -> bool {
         let count_cid = if current.contains_key("cid") { 1 } else { 0 };
         let is_valid = current.len() - count_cid == 7;
@@ -178,7 +167,7 @@ fn day4(gold: bool) -> usize {
     }
 
     let validate_fields = gold;
-    line_groups(&lines("day4.txt"))
+    line_groups(&lines)
         .map(|segment| {
             segment.iter().fold(HashMap::new(), |mut map, line| {
                 for pair in line.split(' ') {
@@ -194,8 +183,7 @@ fn day4(gold: bool) -> usize {
         .count()
 }
 
-fn day5(gold: bool) -> usize {
-    let lines = lines("day5.txt");
+fn day5(lines: &Vec<String>, gold: bool) -> usize {
     let seats = lines.iter().map(|line| {
         line.chars()
             .map(|ch| match ch {
@@ -217,9 +205,9 @@ fn day5(gold: bool) -> usize {
     .unwrap()
 }
 
-fn day6(gold: bool) -> usize {
+fn day6(lines: &Vec<String>, gold: bool) -> usize {
     let intersect = gold;
-    line_groups(&lines("day6.txt"))
+    line_groups(lines)
         .flat_map(|segment| {
             segment
                 .into_iter()
@@ -251,8 +239,7 @@ fn total_nested(graph: &HashMap<String, HashMap<String, usize>>, next: &str, n: 
     }
 }
 
-fn day7(gold: bool) -> usize {
-    let lines = lines("day7.txt");
+fn day7(lines: &Vec<String>, gold: bool) -> usize {
     let mut contains: HashMap<String, HashMap<String, usize>> = HashMap::new();
     for line in lines {
         // shiny gold bags contain 1 dark olive bag, 2 vibrant plum bags.
@@ -327,8 +314,8 @@ fn run(code: &[(Op, i64)], fix_ip: Option<usize>) -> Result {
     Result::Terminate(acc)
 }
 
-fn day8(gold: bool) -> usize {
-    let code: Vec<(Op, i64)> = lines("day8.txt")
+fn day8(lines: &Vec<String>, gold: bool) -> usize {
+    let code: Vec<(Op, i64)> = lines
         .iter()
         .map(|line| {
             (
@@ -362,8 +349,7 @@ fn day8(gold: bool) -> usize {
     panic!();
 }
 
-fn day9(gold: bool) -> usize {
-    let lines = lines("day9.txt");
+fn day9(lines: &Vec<String>, gold: bool) -> usize {
     let input: Vec<i64> = lines.iter().map(|x| x.parse().ok().unwrap()).collect();
     if !gold {
         let mut hist: HashMap<i64, usize> = HashMap::new();
@@ -410,8 +396,7 @@ fn day9(gold: bool) -> usize {
     }
 }
 
-fn day10(gold: bool) -> usize {
-    let lines = lines("day10.txt");
+fn day10(lines: &Vec<String>, gold: bool) -> usize {
     let mut input: Vec<usize> = lines.iter().map(|x| x.parse().ok().unwrap()).collect();
     input.push(0);
     input.sort();
@@ -461,8 +446,7 @@ enum Spot {
     Empty,
     Occupied,
 }
-fn day11(gold: bool) -> usize {
-    let lines = lines("day11.txt");
+fn day11(lines: &Vec<String>, gold: bool) -> usize {
     let mut map: Vec<Vec<_>> = lines
         .iter()
         .map(|line| {
@@ -546,7 +530,7 @@ fn day11(gold: bool) -> usize {
     }
 }
 
-fn day12(gold: bool) -> usize {
+fn day12(lines: &Vec<String>, gold: bool) -> usize {
     fn rotate((dx, dy): (i32, i32), n: i32) -> (i32, i32) {
         match n {
             270 => (-dy, dx),
@@ -556,7 +540,7 @@ fn day12(gold: bool) -> usize {
         }
     }
     let start = ((0, 0), if gold { (10, 1) } else { (1, 0) });
-    let ((x, y), _) = lines("day12.txt").iter().fold(start, |(p, d), line| {
+    let ((x, y), _) = lines.iter().fold(start, |(p, d), line| {
         let (x, y) = p;
         let (dx, dy) = d;
         let n = line[1..].parse().ok().unwrap();
@@ -578,10 +562,9 @@ fn day12(gold: bool) -> usize {
     (x.abs() + y.abs()) as usize
 }
 
-fn day13(gold: bool) -> usize {
-    let input = lines("day13.txt");
-    let start: usize = input[0].parse().ok().unwrap();
-    let busses: Vec<Option<usize>> = input[1]
+fn day13(lines: &Vec<String>, gold: bool) -> usize {
+    let start: usize = lines[0].parse().ok().unwrap();
+    let busses: Vec<Option<usize>> = lines[1]
         .split(',')
         .map(|s| match s {
             "x" => None,
@@ -621,11 +604,10 @@ fn day13(gold: bool) -> usize {
             .0
     }
 }
-fn day14(gold: bool) -> usize {
-    let input = lines("day14.txt");
+fn day14(lines: &Vec<String>, gold: bool) -> usize {
     let mut mem = HashMap::new();
     let (mut or, mut and, mut float) = (0u64, 0u64, 0u64);
-    for line in input {
+    for line in lines {
         if let Some(mask) = line.strip_prefix("mask = ") {
             let (new_or, new_and, new_float) = mask.chars().rev().enumerate().fold(
                 (0, !0, 0),
@@ -666,7 +648,7 @@ fn day14(gold: bool) -> usize {
     mem.values().sum::<u64>() as usize
 }
 
-fn day15(gold: bool) -> usize {
+fn day15(lines: &Vec<String>, gold: bool) -> usize {
     let mut map = HashMap::new();
     let mut speak = 0;
     for (t, v) in content("day15.txt")
@@ -687,9 +669,10 @@ fn day15(gold: bool) -> usize {
     speak
 }
 
-fn day16(gold: bool) -> usize {
-    fn parse_fields(txt: &str) -> Vec<(String, u16, u16, u16, u16)> {
-        txt.split("\n")
+fn day16(lines: &Vec<String>, gold: bool) -> usize {
+    fn parse_fields(lines: &[String]) -> Vec<(String, u16, u16, u16, u16)> {
+        lines
+            .iter()
             .map(|s| {
                 scan_fmt!(s, "{/[^:]*/}: {}-{} or {}-{}", String, u16, u16, u16, u16)
                     .ok()
@@ -699,29 +682,17 @@ fn day16(gold: bool) -> usize {
             })
             .collect()
     }
-    fn parse_ticket(txt: &str) -> Vec<u16> {
+    fn parse_ticket(txt: &String) -> Vec<u16> {
         txt.split(',').map(|s| s.parse().ok().unwrap()).collect()
-    }
-    fn parse_my_ticket(txt: &str) -> Vec<u16> {
-        parse_ticket(txt.strip_prefix("your ticket:\n").unwrap())
-    }
-    fn parse_nearby_tickets(txt: &str) -> Vec<Vec<u16>> {
-        txt.strip_prefix("nearby tickets:\n")
-            .unwrap()
-            .split('\n')
-            .filter(|s| !s.is_empty())
-            .map(parse_ticket)
-            .collect()
     }
     fn could_be_field(v: u16, (_, lo1, hi1, lo2, hi2): &(String, u16, u16, u16, u16)) -> bool {
         (*lo1..=*hi1).contains(&v) || (*lo2..=*hi2).contains(&v)
     }
 
-    let input = content("day16.txt");
-    let mut blocks = input.split("\n\n");
-    let fields = parse_fields(blocks.next().unwrap());
-    let mine = parse_my_ticket(blocks.next().unwrap());
-    let nearby = parse_nearby_tickets(blocks.next().unwrap());
+    let blocks = line_groups(lines).collect::<Vec<_>>();
+    let fields = parse_fields(blocks[0]);
+    let mine = parse_ticket(&blocks[1][1]);
+    let nearby: Vec<_> = blocks[2][1..].iter().map(parse_ticket).collect();
     let is_valid_ticket = |ticket: &Vec<u16>| {
         !ticket
             .iter()
@@ -816,8 +787,7 @@ fn day16(gold: bool) -> usize {
     }
 }
 
-fn day17(gold: bool) -> usize {
-    let lines = lines("day17.txt");
+fn day17(lines: &Vec<String>, gold: bool) -> usize {
     let mut vol = HashSet::new();
     for (y, line) in lines.iter().enumerate() {
         for (x, ch) in line.chars().enumerate() {
@@ -947,11 +917,8 @@ impl ExprState {
     }
 }
 
-fn day18(gold: bool) -> usize {
-    lines("day18.txt")
-        .iter()
-        .map(|line| ExprState::eval(gold, line))
-        .sum()
+fn day18(lines: &Vec<String>, gold: bool) -> usize {
+    lines.iter().map(|line| ExprState::eval(gold, line)).sum()
 }
 
 #[derive(Debug)]
@@ -959,13 +926,14 @@ enum Expansion {
     Char(char),
     Rules(Vec<Vec<u8>>),
 }
-fn day19(gold: bool) -> usize {
-    let lines = content("day19.txt");
-    let mut parts = lines.split("\n\n");
+fn day19(lines: &Vec<String>, gold: bool) -> usize {
+    let mut parts = line_groups(lines);
     let rules = parts.next().unwrap();
     let input = parts.next().unwrap();
-    let rules: HashMap<u8, Expansion> = rules
-        .split('\n')
+    let rules: HashMap<u8, Expansion> = parts
+        .next()
+        .unwrap()
+        .iter()
         .map(|rule| {
             let mut parts = rule.split(": ");
             let name = parts.next().unwrap();
@@ -1040,8 +1008,10 @@ fn day19(gold: bool) -> usize {
         println!("{}", &r0);
     }
     let regex = Regex::new(&r0).ok().unwrap();
-    input
-        .split('\n')
+    parts
+        .next()
+        .unwrap()
+        .iter()
         .filter(|line| regex.is_match(line))
         .count()
 }
@@ -1089,15 +1059,17 @@ impl Tile {
     }
 }
 
-fn day20(gold: bool) -> usize {
-    let input = content("day20.txt");
+fn day20(lines: &Vec<String>, gold: bool) -> usize {
     let mut tiles: HashMap<_, Tile> = HashMap::new();
-    for block in input.split("\n\n") {
-        let mut lines = block.split("\n");
-        let id = scan_fmt!(lines.next().unwrap(), "Tile {}:", usize)
+    for lines in line_groups(lines) {
+        let id = scan_fmt!(lines.iter().next().unwrap(), "Tile {}:", usize)
             .ok()
             .unwrap();
-        let chars = lines.map(|str| str.chars().collect()).take(10).collect();
+        let chars = lines
+            .iter()
+            .map(|str| str.chars().collect())
+            .take(10)
+            .collect();
         let tile = Tile::new(chars);
         for r in 0..8 {
             tiles.insert((id, r), tile.instance(r));
@@ -1273,11 +1245,10 @@ fn day20(gold: bool) -> usize {
     0
 }
 
-fn day21(gold: bool) -> usize {
+fn day21(lines: &Vec<String>, gold: bool) -> usize {
     if gold {
         return 0;
     }
-    let lines = lines("day21.txt");
     let foods: Vec<(HashSet<String>, HashSet<String>)> = lines
         .iter()
         .map(|line| {
@@ -1349,7 +1320,7 @@ fn day21(gold: bool) -> usize {
         .count()
 }
 
-fn day22(gold: bool) -> usize {
+fn day22(lines: &Vec<String>, gold: bool) -> usize {
     let input = content("day22.txt");
     let decks: Vec<VecDeque<u8>> = input
         .split("\n\n")
@@ -1476,7 +1447,7 @@ fn day22(gold: bool) -> usize {
         .sum()
 }
 
-fn day23(gold: bool) -> usize {
+fn day23(lines: &Vec<String>, gold: bool) -> usize {
     let (turns, max) = if gold { (10000000, 1000000) } else { (100, 9) };
     let mut succ: Vec<u32> = vec![0; max as usize + 1];
     let s = "253149867";
@@ -1522,8 +1493,7 @@ fn day23(gold: bool) -> usize {
     }
 }
 
-fn day24(gold: bool) -> usize {
-    let lines = lines("day24.txt");
+fn day24(lines: &Vec<String>, gold: bool) -> usize {
     let mut flipped = HashSet::new();
     for line in lines {
         let mut pos = (0, 0);
@@ -1592,7 +1562,7 @@ fn day24(gold: bool) -> usize {
     floor.len()
 }
 
-fn day25(gold: bool) -> usize {
+fn day25(lines: &Vec<String>, gold: bool) -> usize {
     if gold {
         return 0;
     }
@@ -1632,6 +1602,25 @@ fn main() {
         assert!(n <= solutions.len());
         let i = n - 1;
         let solution = solutions[i];
-        println!("{}: {}, {}", n, solution(false), solution(true));
+        let file = File::open(&format!(
+            "input/day{}{}.txt",
+            n,
+            if opts.test { "t" } else { "" }
+        ))
+        .ok();
+        let lines = if let Some(file) = file {
+            BufReader::new(file)
+                .lines()
+                .map(|line| line.ok().unwrap())
+                .collect()
+        } else {
+            Vec::new()
+        };
+        println!(
+            "{}: {}, {}",
+            n,
+            solution(&lines, false),
+            solution(&lines, true)
+        );
     }
 }

@@ -36,20 +36,17 @@ fn sum2(nums: &HashSet<i64>, target: i64) -> Option<(i64, i64)> {
     None
 }
 
-fn read_nums() -> HashSet<i64> {
-    lines("day1.txt")
+fn day1(gold: bool) -> usize {
+    let nums: HashSet<i64> = lines("day1.txt")
         .iter()
         .map(|str| str.parse().ok().unwrap())
-        .collect()
-}
+        .collect();
 
-fn day1(gold: bool) -> usize {
     if !gold {
-        if let Some((a, b)) = sum2(&read_nums(), 2020) {
+        if let Some((a, b)) = sum2(&nums, 2020) {
             return (a * b) as usize;
         }
     } else {
-        let nums = read_nums();
         for num in &nums {
             if let Some((a, b)) = sum2(&nums, 2020 - num) {
                 return (num * a * b) as usize;
@@ -59,27 +56,25 @@ fn day1(gold: bool) -> usize {
     panic!();
 }
 
-fn read_passwords() -> Vec<(usize, usize, char, String)> {
-    lines("day2.txt")
+fn day2(gold: bool) -> usize {
+    let passwords: Vec<(usize, usize, char, String)> = lines("day2.txt")
         .iter()
         .map(|line| {
             scan_fmt!(line, "{}-{} {}: {}", usize, usize, char, String)
                 .ok()
                 .unwrap_or_else(|| panic!("bad password line: {}", line))
         })
-        .collect()
-}
-
-fn day2(gold: bool) -> usize {
-    let passwords = read_passwords().into_iter();
+        .collect();
     if !gold {
         passwords
+            .into_iter()
             .map(|(min, max, ch_constrained, password)| {
                 (min..=max).contains(&password.chars().filter(|ch| *ch == ch_constrained).count())
             })
             .count()
     } else {
         passwords
+            .iter()
             .filter(|(c1, c2, ch_constrained, password)| {
                 let (i1, i2) = (c1 - 1, c2 - 1);
                 let reps = password
@@ -169,52 +164,46 @@ fn is_valid_field(key: &str, value: &str) -> bool {
     }
 }
 
-fn is_valid_passport(current: &HashMap<String, String>) -> bool {
-    let count_cid = if current.contains_key("cid") { 1 } else { 0 };
-    let is_valid = current.len() - count_cid == 7;
-    is_valid
+fn line_groups<'a>(lines: &'a Vec<String>) -> impl Iterator<Item = &[String]> {
+    lines.split(|s| s.is_empty())
 }
 
-fn sum_groups<State, MergeLine: Fn(Option<State>, &str) -> State, GetCount: Fn(&State) -> usize>(
-    lines: Vec<String>,
-    merge_line: MergeLine,
-    get_count: GetCount,
-) -> usize {
-    let mut sum = 0;
-    let mut maybe_state = None;
-
-    for line in lines {
-        if line.is_empty() {
-            if let Some(state) = maybe_state {
-                sum += get_count(&state);
-                maybe_state = None;
-            }
-        } else {
-            maybe_state = Some(merge_line(maybe_state, &line));
-        }
-    }
-    if let Some(state) = maybe_state {
-        sum += get_count(&state);
-    }
-    sum
+fn groups<'a, State, MergeLine: FnMut(Option<State>, &str) -> State>(
+    lines: &'a Vec<String>,
+    merge_line: &'a mut MergeLine,
+) -> impl Iterator<Item = State> + 'a {
+    line_groups(lines)
+        .map(|segment| {
+            segment
+                .iter()
+                .map(|s| &s[..])
+                .fold(None, |s, l| Some(merge_line(s, l)))
+        })
+        .map(|state| state.unwrap())
 }
 
 fn day4(gold: bool) -> usize {
+    fn is_valid_passport(current: &HashMap<String, String>) -> bool {
+        let count_cid = if current.contains_key("cid") { 1 } else { 0 };
+        let is_valid = current.len() - count_cid == 7;
+        is_valid
+    }
+
     let validate_fields = gold;
-    sum_groups(
-        lines("day4.txt"),
-        |current, line| {
-            let mut map = current.unwrap_or(HashMap::new());
-            for pair in line.split(' ') {
-                let (k, v) = scan_fmt!(pair, "{}:{}", String, String).ok().unwrap();
-                if !validate_fields || is_valid_field(&k, &v) {
-                    map.insert(k, v);
+    line_groups(&lines("day4.txt"))
+        .map(|segment| {
+            segment.iter().fold(HashMap::new(), |mut map, line| {
+                for pair in line.split(' ') {
+                    let (k, v) = scan_fmt!(pair, "{}:{}", String, String).ok().unwrap();
+                    if !validate_fields || is_valid_field(&k, &v) {
+                        map.insert(k, v);
+                    }
                 }
-            }
-            map
-        },
-        |current| if is_valid_passport(current) { 1 } else { 0 },
-    )
+                map
+            })
+        })
+        .filter(is_valid_passport)
+        .count()
 }
 
 fn day5(gold: bool) -> usize {
@@ -241,23 +230,16 @@ fn day5(gold: bool) -> usize {
 }
 
 fn day6(gold: bool) -> usize {
-    let and = gold;
-    sum_groups(
-        lines("day6.txt"),
-        |set, line| {
-            let new: HashSet<char> = line.chars().collect();
-            if let Some(old) = set {
-                if and {
-                    &old & &new
-                } else {
-                    &old | &new
-                }
-            } else {
-                new
-            }
-        },
-        |set| set.len(),
-    )
+    let intersect = gold;
+    line_groups(&lines("day6.txt"))
+        .flat_map(|segment| {
+            segment
+                .into_iter()
+                .map(|s| s.chars().collect::<HashSet<_>>())
+                .reduce(|a, b| if intersect { &a & &b } else { &a | &b })
+        })
+        .map(|set| set.len())
+        .sum()
 }
 
 fn can_reach(end: &str, next: &str, graph: &HashMap<String, HashMap<String, usize>>) -> bool {
@@ -1649,7 +1631,7 @@ fn main() {
         day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11, day12, day13, day14,
         day15, day16, day17, day18, day19, day20, day21, day22, day23, day24, day25,
     ];
-    for (i, solution) in solutions.iter().enumerate().skip(19) {
+    for (i, solution) in solutions.iter().enumerate().skip(3).take(3) {
         println!("{}: {}, {}", i + 1, solution(false), solution(true));
     }
 }

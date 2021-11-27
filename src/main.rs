@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate scan_fmt;
+extern crate clap;
 
+use clap::Parser;
 use std::hash::Hash;
 use std::{collections::VecDeque, fmt::Debug};
 
@@ -166,20 +168,6 @@ fn is_valid_field(key: &str, value: &str) -> bool {
 
 fn line_groups<'a>(lines: &'a Vec<String>) -> impl Iterator<Item = &[String]> {
     lines.split(|s| s.is_empty())
-}
-
-fn groups<'a, State, MergeLine: FnMut(Option<State>, &str) -> State>(
-    lines: &'a Vec<String>,
-    merge_line: &'a mut MergeLine,
-) -> impl Iterator<Item = State> + 'a {
-    line_groups(lines)
-        .map(|segment| {
-            segment
-                .iter()
-                .map(|s| &s[..])
-                .fold(None, |s, l| Some(merge_line(s, l)))
-        })
-        .map(|state| state.unwrap())
 }
 
 fn day4(gold: bool) -> usize {
@@ -1626,12 +1614,24 @@ fn day25(gold: bool) -> usize {
     seq(door_key).skip(card_loop.unwrap()).next().unwrap().1
 }
 
+#[derive(Parser)]
+#[clap(version = "1.0", author = "Tom Jackson <ddrcoder@gmail.com>")]
+struct Opts {
+    problems: Vec<usize>,
+    #[clap(short)]
+    test: bool,
+}
+
 fn main() {
+    let opts = Opts::parse();
     let solutions = [
         day1, day2, day3, day4, day5, day6, day7, day8, day9, day10, day11, day12, day13, day14,
         day15, day16, day17, day18, day19, day20, day21, day22, day23, day24, day25,
     ];
-    for (i, solution) in solutions.iter().enumerate().skip(3).take(3) {
-        println!("{}: {}, {}", i + 1, solution(false), solution(true));
+    for n in opts.problems {
+        assert!(n <= solutions.len());
+        let i = n - 1;
+        let solution = solutions[i];
+        println!("{}: {}, {}", n, solution(false), solution(true));
     }
 }

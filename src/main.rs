@@ -584,7 +584,7 @@ fn day12(gold: bool) -> usize {
             90 => (dy, -dx),
             _ => panic!(),
         }
-    };
+    }
     let start = ((0, 0), if gold { (10, 1) } else { (1, 0) });
     let ((x, y), _) = lines("day12.txt").iter().fold(start, |(p, d), line| {
         let (x, y) = p;
@@ -1063,7 +1063,7 @@ fn day19(gold: bool) -> usize {
                 }
             },
         }
-    };
+    }
     let mut r0 = build_regex("^".to_string(), 0, gold, &rules);
     r0.push('$');
     if cfg!(debug) {
@@ -1516,7 +1516,7 @@ fn day23(gold: bool) -> usize {
         succ[from as usize] = to;
     }
     succ[cups.clone().rev().next().unwrap() as usize] = current;
-    for turn in 1..=turns {
+    for _turn in 1..=turns {
         let pickup1 = succ[current as usize];
         let pickup2 = succ[pickup1 as usize];
         let pickup3 = succ[pickup2 as usize];
@@ -1592,7 +1592,7 @@ fn day24(gold: bool) -> usize {
 
     let mut floor = flipped;
     if gold {
-        for t in 0..100 {
+        for _t in 0..100 {
             let mut neighbors: HashMap<(i32, i32), usize> = HashMap::new();
             for (x, y) in floor.iter().cloned() {
                 for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (-1, 1), (1, -1), (0, -1)]
